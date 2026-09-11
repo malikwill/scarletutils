@@ -18,26 +18,23 @@ void runMaintainGravity() {
         bool p2maintain = bgl->m_player2->m_holdingButtons[1] != bgl->m_player2->m_isUpsideDown;
 
         bool p1holding = bgl->m_uiLayer->m_p1Jumping || bgl->m_uiLayer->m_p1TouchId != -1;
-        // Outside true 2-player mode, the UI never populates p2's own touch/jump
-        // fields (there's no separate P2 input region), so fall back to mirroring
-        // player 1's physical hold state, since both icons share the same input.
-        bool p2holding = bgl->m_levelSettings->m_twoPlayerMode
-            ? (bgl->m_uiLayer->m_p2Jumping || bgl->m_uiLayer->m_p2TouchId != -1)
-            : p1holding;
+        bool p2holding = bgl->m_uiLayer->m_p2Jumping || bgl->m_uiLayer->m_p2TouchId != -1;
 
         if (GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls))
             std::swap(p1holding, p2holding);
 
         bgl->m_queuedButtons.clear();
 
-        if ((p1holding || (autoclickerHoldingP1 && autoclickerP1)) != p1maintain) {
+        if (maintainGravityP1 &&
+            (p1holding || (autoclickerHoldingP1 && autoclickerP1)) != p1maintain) {
             bgl->queueButton((int)PlayerButton::Jump, !bgl->m_player1->m_holdingButtons[1],
             GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls), 0.0);
             autoclickerTimerP1 = INT32_MAX;
         }
 
-        if ((p2holding || (autoclickerHoldingP2 && autoclickerP2)) != p2maintain &&
-            bgl->m_gameState.m_isDualMode) {
+        if (maintainGravityP2 &&
+            (p2holding || (autoclickerHoldingP2 && autoclickerP2)) != p2maintain &&
+            bgl->m_gameState.m_isDualMode && bgl->m_levelSettings->m_twoPlayerMode) {
             bgl->queueButton((int)PlayerButton::Jump, !bgl->m_player2->m_holdingButtons[1],
             !GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls), 0.0);
             autoclickerTimerP2 = INT32_MAX;

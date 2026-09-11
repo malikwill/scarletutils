@@ -57,6 +57,7 @@ class $modify(ScarletPlayLayer, PlayLayer) {
 
     void resetLevel() {
         PlayLayer::resetLevel();
+        this->applyStartFade();
         if (flipOnDeath && flipPlayer != 0) {
             if (flipOnDeathP1 && flipPlayer == 1 || flipOnDeathBoth) {
                 if (!flipOnDeathSwift) {
@@ -105,6 +106,13 @@ class $modify(ScarletPlayLayer, PlayLayer) {
         }
     }
 
+    void onStartFadeRemoved(CCNode*) {
+        // The action sequence below has finished and removed the layer itself;
+        // clear the pointer so applyStartFade() is able to run again on the
+        // next attempt instead of thinking a fade is still in progress.
+        m_startFadeLayer = nullptr;
+    }
+
     void applyStartFade() {
         if (fadeLevel && fadeLevelInDuration > 0) {
             if (m_startFadeLayer) return;
@@ -115,8 +123,9 @@ class $modify(ScarletPlayLayer, PlayLayer) {
             this->addChild(m_startFadeLayer, 100);
 
             auto fadeAction = CCFadeOut::create(fadeLevelInDuration);
+            auto clearPointer = CCCallFuncN::create(this, callfuncN_selector(ScarletPlayLayer::onStartFadeRemoved));
             auto removeAction = CCRemoveSelf::create();
-            m_startFadeLayer->runAction(CCSequence::create(fadeAction, removeAction, nullptr));
+            m_startFadeLayer->runAction(CCSequence::create(fadeAction, clearPointer, removeAction, nullptr));
 
             if (fadeAudio && fadeAudioInDuration > 0) {
                 FMODAudioEngine::sharedEngine()->fadeMusic(fadeAudioInDuration, 0, 0.0f, 1.f);
@@ -139,6 +148,10 @@ class $modify(ScarletPlayLayer, PlayLayer) {
         }
     }
 
+    void onEndFadeRemoved(CCNode*) {
+        m_endFadeLayer = nullptr;
+    }
+
     void showEndLayer() {
         PlayLayer::showEndLayer();
 
@@ -152,8 +165,12 @@ class $modify(ScarletPlayLayer, PlayLayer) {
             this->addChild(m_endFadeLayer, 1000);
 
             auto fadeIn = CCFadeIn::create(fadeLevelOutDuration);
+            auto hold = CCDelayTime::create(fadeLevelOutTimeout);
+            auto fadeOut = CCFadeOut::create(fadeLevelOutDuration);
+            auto clearPointer = CCCallFuncN::create(this, callfuncN_selector(ScarletPlayLayer::onEndFadeRemoved));
+            auto removeAction = CCRemoveSelf::create();
 
-            m_endFadeLayer->runAction(fadeIn);
+            m_endFadeLayer->runAction(CCSequence::create(fadeIn, hold, fadeOut, clearPointer, removeAction, nullptr));
 
             if (fadeAudio && fadeAudioOutDuration > 0) {
                 FMODAudioEngine::sharedEngine()->fadeMusic(fadeAudioOutDuration, 0, 1.0f, 0.0f);
