@@ -32,7 +32,7 @@ void runMaintainGravity() {
         }
 
         if ((p2holding || (autoclickerHoldingP2 && autoclickerP2)) != p2maintain &&
-            bgl->m_gameState.m_isDualMode && bgl->m_levelSettings->m_twoPlayerMode) {
+            bgl->m_gameState.m_isDualMode) {
             bgl->queueButton((int)PlayerButton::Jump, !bgl->m_player2->m_holdingButtons[1],
             !GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls), 0.0);
             autoclickerTimerP2 = INT32_MAX;
