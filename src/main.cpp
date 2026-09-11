@@ -3,6 +3,7 @@
 #include "includes.hpp"
 #include <imgui-cocos.hpp>
 #include <imgui.h>
+#include <cfloat>
 
 using namespace geode::prelude;
 
@@ -250,6 +251,14 @@ $on_mod(Loaded) {
         // bar, which is the window's drag handle, making it easier to grab.
         style.ScaleAllSizes(uiScale);
 
+        // Give it a sane, fully-on-screen starting spot the first time it's
+        // ever opened (the user can still drag it anywhere after that), and
+        // cap the max width so a long tooltip/warning line can never force
+        // the whole AlwaysAutoResize window to blow out past the screen edge.
+        ImGui::SetNextWindowPos(ImVec2(40.f, 40.f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSizeConstraints(ImVec2(0.f, 0.f),
+                                            ImVec2(420.f * uiScale, FLT_MAX));
+
         ImGui::Begin("Scarlet Utils", nullptr,
                     ImGuiWindowFlags_NoCollapse |
                     ImGuiWindowFlags_AlwaysAutoResize);
@@ -289,9 +298,10 @@ $on_mod(Loaded) {
             }
 
             if (!flipOnDeathSilicateAvailable) {
-              ImGui::TextColored(ImVec4(1.f, 0.4f, 0.4f, 1.f),
-                                 "Requires Silicate, which isn't installed "
+              ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.4f, 0.4f, 1.f));
+              ImGui::TextWrapped("Requires Silicate, which isn't installed "
                                  "(or isn't available on this platform).");
+              ImGui::PopStyleColor();
             }
 
             ImGui::Checkbox("Click Green Dash Orbs", &clickGreenDash);
