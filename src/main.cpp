@@ -137,9 +137,9 @@ $on_mod(Loaded) {
   );
 
   #ifdef GEODE_IS_DESKTOP
-  float fontSize = 21.f * 1.4f;
+  float fontSize = 21.f;
   #else
-  float fontSize = 36.f * 1.4f;
+  float fontSize = 36.f;
   #endif
 
   ImGuiCocos::get()
@@ -151,6 +151,13 @@ $on_mod(Loaded) {
       }).draw([&] {
         if (!menuVisible)
           return;
+
+        // Scale the whole menu up a bit. FontGlobalScale magnifies the
+        // already-baked font texture (cheap, no atlas rebuild, so it won't
+        // glitch), and ScaleAllSizes below scales padding/spacing by the
+        // same factor so proportions stay consistent.
+        const float uiScale = 1.15f;
+        ImGui::GetIO().FontGlobalScale = uiScale;
 
         ImGuiStyle &style = ImGui::GetStyle();
 
@@ -239,9 +246,9 @@ $on_mod(Loaded) {
         style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(1e-6f, 5.751073e-7f, 5.751073e-7f, 0.35f);
 
         // Scale every size (padding, spacing, rounding, scrollbar, grips, etc.)
-        // up by 40%. This also enlarges the title bar, which is the window's
-        // drag handle, making the menu noticeably easier to grab and move.
-        style.ScaleAllSizes(1.4f);
+        // by the same factor as the font above. This also enlarges the title
+        // bar, which is the window's drag handle, making it easier to grab.
+        style.ScaleAllSizes(uiScale);
 
         ImGui::Begin("Scarlet Utils", nullptr,
                     ImGuiWindowFlags_NoCollapse |
