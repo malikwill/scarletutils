@@ -20,6 +20,7 @@ bool noEffect = Mod::get()->getSavedValue<bool>("noEffect", false);
 bool fadeLevel = Mod::get()->getSavedValue<bool>("fadeLevel", false);
 double fadeLevelInDuration = Mod::get()->getSavedValue<double>("fadeLevelInDuration", 0.5);
 double fadeLevelOutDuration = Mod::get()->getSavedValue<double>("fadeLevelOutDuration", 1.0);
+double fadeLevelOutTimeout = Mod::get()->getSavedValue<double>("fadeLevelOutTimeout", 1.0);
 
 bool fadeAudio = Mod::get()->getSavedValue<bool>("fadeAudio", false);
 double fadeAudioInDuration = Mod::get()->getSavedValue<double>("fadeAudioInDuration", 0.5);
@@ -67,6 +68,8 @@ bool straightFly = false;
 bool straightUfo = false;
 
 bool maintainGravity = false;
+bool maintainGravityP1 = true;
+bool maintainGravityP2 = true;
 
 bool autoclickerP1 = false;
 bool autoclickerP2 = false;
@@ -296,6 +299,16 @@ $on_mod(Loaded) {
 
             ImGui::Checkbox("Maintain Gravity", &maintainGravity);
 
+            ImGui::SameLine();
+            if (ImGui::ArrowButton("mg1", ImGuiDir_Right))
+              ImGui::OpenPopup("maintain gravity options");
+
+            if (ImGui::BeginPopup("maintain gravity options")) {
+              ImGui::Checkbox("Player 1##maintaingravity", &maintainGravityP1);
+              ImGui::Checkbox("Player 2##maintaingravity", &maintainGravityP2);
+              ImGui::EndPopup();
+            }
+
             ImGui::Checkbox("Auto Straight Fly", &straightFly);
             if (ImGui::IsItemHovered()) {
               ImGui::BeginTooltip();
@@ -509,6 +522,19 @@ $on_mod(Loaded) {
                 fadeLevelOutDuration = std::max(fadeLevelOutDuration, 0.0);
                 Mod::get()->setSavedValue<double>("fadeLevelOutDuration",
                                                   fadeLevelOutDuration);
+              }
+
+              ImGui::InputDouble("Timeout##level", &fadeLevelOutTimeout, 0.0,
+                                 0.0, "%.2f");
+              if (ImGui::IsItemHovered()) {
+                ImGui::BeginTooltip();
+                ImGui::Text("How long the screen stays faded out before it clears.");
+                ImGui::EndTooltip();
+              }
+              if (ImGui::IsItemEdited()) {
+                fadeLevelOutTimeout = std::max(fadeLevelOutTimeout, 0.0);
+                Mod::get()->setSavedValue<double>("fadeLevelOutTimeout",
+                                                  fadeLevelOutTimeout);
               }
               ImGui::EndPopup();
             }

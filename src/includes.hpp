@@ -16,6 +16,7 @@ extern bool noEffect;
 extern bool fadeLevel;
 extern double fadeLevelInDuration;
 extern double fadeLevelOutDuration;
+extern double fadeLevelOutTimeout;
 
 extern bool fadeAudio;
 extern double fadeAudioInDuration;
@@ -61,6 +62,8 @@ extern bool straightFly;
 extern bool straightUfo;
 
 extern bool maintainGravity;
+extern bool maintainGravityP1;
+extern bool maintainGravityP2;
 
 extern bool autoclickerP1;
 extern bool autoclickerP2;
