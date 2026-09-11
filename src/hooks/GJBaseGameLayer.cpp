@@ -18,7 +18,12 @@ void runMaintainGravity() {
         bool p2maintain = bgl->m_player2->m_holdingButtons[1] != bgl->m_player2->m_isUpsideDown;
 
         bool p1holding = bgl->m_uiLayer->m_p1Jumping || bgl->m_uiLayer->m_p1TouchId != -1;
-        bool p2holding = bgl->m_uiLayer->m_p2Jumping || bgl->m_uiLayer->m_p2TouchId != -1;
+        // Outside true 2-player mode, the UI never populates p2's own touch/jump
+        // fields (there's no separate P2 input region), so fall back to mirroring
+        // player 1's physical hold state, since both icons share the same input.
+        bool p2holding = bgl->m_levelSettings->m_twoPlayerMode
+            ? (bgl->m_uiLayer->m_p2Jumping || bgl->m_uiLayer->m_p2TouchId != -1)
+            : p1holding;
 
         if (GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls))
             std::swap(p1holding, p2holding);
