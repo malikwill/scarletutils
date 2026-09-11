@@ -58,7 +58,7 @@ class $modify(ScarletPlayLayer, PlayLayer) {
     void resetLevel() {
         PlayLayer::resetLevel();
         this->applyStartFade();
-        if (flipOnDeath && flipPlayer != 0) {
+        if (flipOnDeath && flipPlayer != 0 && Loader::get()->isModLoaded("peony.silicate")) {
             if (flipOnDeathP1 && flipPlayer == 1 || flipOnDeathBoth) {
                 if (!flipOnDeathSwift) {
                     if (flipOnDeathLogicP1) {
@@ -93,9 +93,10 @@ class $modify(ScarletPlayLayer, PlayLayer) {
             }
             this->processQueuedButtons(0, true);
             #ifdef GEODE_IS_WINDOWS
-            if (flipOnDeathUnfreeze)
+            if (flipOnDeathUnfreeze) {
                 PostMessage(hwnd, WM_KEYDOWN, 0x56, 0);
                 PostMessage(hwnd, WM_KEYUP, 0x56, 0);
+            }
             #endif
         }
     }
