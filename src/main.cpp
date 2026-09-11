@@ -137,9 +137,9 @@ $on_mod(Loaded) {
   );
 
   #ifdef GEODE_IS_DESKTOP
-  float fontSize = 21.f;
+  float fontSize = 21.f * 1.4f;
   #else
-  float fontSize = 36.f;
+  float fontSize = 36.f * 1.4f;
   #endif
 
   ImGuiCocos::get()
@@ -237,6 +237,11 @@ $on_mod(Loaded) {
         style.Colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.0f, 0.0f, 0.0f, 0.7f);
         style.Colors[ImGuiCol_NavWindowingDimBg] = ImVec4(1e-6f, 5.9227466e-7f, 5.9227466e-7f, 0.2f);
         style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(1e-6f, 5.751073e-7f, 5.751073e-7f, 0.35f);
+
+        // Scale every size (padding, spacing, rounding, scrollbar, grips, etc.)
+        // up by 40%. This also enlarges the title bar, which is the window's
+        // drag handle, making the menu noticeably easier to grab and move.
+        style.ScaleAllSizes(1.4f);
 
         ImGui::Begin("Scarlet Utils", nullptr,
                     ImGuiWindowFlags_NoCollapse |
