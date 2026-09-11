@@ -245,7 +245,11 @@ $on_mod(Loaded) {
         if (ImGui::BeginTabBar("main")) {
           if (ImGui::BeginTabItem("Gameplay")) {
 
+            bool flipOnDeathSilicateAvailable = Loader::get()->isModLoaded("peony.silicate");
+
+            ImGui::BeginDisabled(!flipOnDeathSilicateAvailable);
             ImGui::Checkbox("Flip Input On Death", &flipOnDeath);
+            ImGui::EndDisabled();
             if (ImGui::IsItemHovered()) {
               ImGui::BeginTooltip();
               ImGui::Text("Requires Silicate; Enable Backwards Stepping and Prevent Death.");
@@ -270,6 +274,12 @@ $on_mod(Loaded) {
               }
               #endif
               ImGui::EndPopup();
+            }
+
+            if (!flipOnDeathSilicateAvailable) {
+              ImGui::TextColored(ImVec4(1.f, 0.4f, 0.4f, 1.f),
+                                 "Requires Silicate, which isn't installed "
+                                 "(or isn't available on this platform).");
             }
 
             ImGui::Checkbox("Click Green Dash Orbs", &clickGreenDash);
