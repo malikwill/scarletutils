@@ -131,10 +131,8 @@ $on_mod(Loaded) {
   listenForKeybindSettingPresses(
   "scarlet.utils/menu",
   [](Keybind const &keybind, bool down, bool repeat, double timestamp) {
-    if (down && !repeat) {
+    if (down && !repeat)
       menuVisible = !menuVisible;
-      geode::log::info("Scarlet Utils: keybind toggled menuVisible -> {}", menuVisible);
-    }
     }
   );
 
@@ -151,12 +149,6 @@ $on_mod(Loaded) {
         fontSize);
         ImGui::GetIO().FontDefault = font;
       }).draw([&] {
-        static bool wasVisible = false;
-        if (menuVisible != wasVisible) {
-          geode::log::info("Scarlet Utils: draw() sees menuVisible -> {}", menuVisible);
-          wasVisible = menuVisible;
-        }
-
         if (!menuVisible)
           return;
 
@@ -246,15 +238,15 @@ $on_mod(Loaded) {
         style.Colors[ImGuiCol_NavWindowingDimBg] = ImVec4(1e-6f, 5.9227466e-7f, 5.9227466e-7f, 0.2f);
         style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(1e-6f, 5.751073e-7f, 5.751073e-7f, 0.35f);
 
+        // Force a known, fully-on-screen position every time the window is
+        // freshly opened (not just the very first time ever) so it can't
+        // get stuck off-screen if a bad position was ever recorded. Size is
+        // left alone (normal/auto), only position is reset.
+        ImGui::SetNextWindowPos(ImVec2(40.f, 40.f), ImGuiCond_Appearing);
+
         ImGui::Begin("Scarlet Utils", nullptr,
                     ImGuiWindowFlags_NoCollapse |
                     ImGuiWindowFlags_AlwaysAutoResize);
-
-        static bool loggedFrame = false;
-        if (!loggedFrame) {
-          geode::log::info("Scarlet Utils: ImGui::Begin succeeded, drawing menu contents");
-          loggedFrame = true;
-        }
 
         if (ImGui::BeginTabBar("main")) {
           if (ImGui::BeginTabItem("Gameplay")) {
