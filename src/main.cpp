@@ -266,6 +266,11 @@ $on_mod(Loaded) {
         static bool scaledStyleOnce = false;
         if (!scaledStyleOnce) {
           style.ScaleAllSizes(uiScale);
+          // Give the scrollbar a slightly wider grab target than the general
+          // downscale would otherwise leave it with — everything else stays
+          // small, but the scrollbar itself is a common touch target and
+          // benefits from a bit more room to grab.
+          style.ScrollbarSize *= 1.4f;
           scaledStyleOnce = true;
         }
 
@@ -280,18 +285,26 @@ $on_mod(Loaded) {
         float maxWidth = std::min(320.f, ImGui::GetIO().DisplaySize.x * 0.45f);
         float maxHeight = std::min(220.f, ImGui::GetIO().DisplaySize.y * 0.4f);
 
-        // Main and Visuals are now two separate, independently draggable
-        // windows side by side instead of tabs inside one window. Each has
-        // its native collapse arrow enabled (NoCollapse removed) and starts
-        // collapsed the first time it appears each session, so opening the
-        // menu shows two small closed headers — click a window's arrow to
-        // rotate it open and reveal that section's options.
+        // Main and Visuals are two separate, independently draggable windows
+        // side by side. ImGui's native collapse arrow was tried here first,
+        // but combining it with AlwaysAutoResize produced a one-frame glitch
+        // where content drew before its background panel caught up (the
+        // "solid black, floating checkboxes" look), and the built-in arrow
+        // glyph was too small/low-contrast to spot at this scale anyway. So
+        // collapsing is handled manually instead, with the exact same
+        // ArrowButton widget used for every other collapsible section in
+        // this menu (Flip Input On Death, Noclip, etc.) — same look, same
+        // click target, and no native-collapse transition to glitch.
+        static bool mainCollapsed = true;
+        static bool visualsCollapsed = true;
+
         ImGui::SetNextWindowPos(ImVec2(40.f, 40.f), ImGuiCond_Appearing);
-        ImGui::SetNextWindowCollapsed(true, ImGuiCond_Appearing);
         ImGui::SetNextWindowSizeConstraints(ImVec2(0.f, 0.f),
                                             ImVec2(maxWidth, maxHeight));
 
-        ImGui::Begin("Main", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Begin("Main", nullptr,
+                    ImGuiWindowFlags_NoCollapse |
+                    ImGuiWindowFlags_AlwaysAutoResize);
 
         {
           ImVec2 pos = ImGui::GetWindowPos();
@@ -301,6 +314,13 @@ $on_mod(Loaded) {
               "Scarlet Utils: Main window pos=({}, {}) size=({}, {}) display=({}, {})",
               pos.x, pos.y, size.x, size.y, display.x, display.y);
         }
+
+        if (ImGui::ArrowButton("##collapseMain", mainCollapsed ? ImGuiDir_Right : ImGuiDir_Down))
+          mainCollapsed = !mainCollapsed;
+        ImGui::SameLine();
+        ImGui::Text("Main");
+
+        if (!mainCollapsed) {
 
             bool flipOnDeathSilicateAvailable = Loader::get()->isModLoaded("peony.silicate");
 
@@ -563,14 +583,17 @@ $on_mod(Loaded) {
               ImGui::EndPopup();
             }
 
+        } // !mainCollapsed
+
         ImGui::End();
 
         ImGui::SetNextWindowPos(ImVec2(40.f + maxWidth + 20.f, 40.f), ImGuiCond_Appearing);
-        ImGui::SetNextWindowCollapsed(true, ImGuiCond_Appearing);
         ImGui::SetNextWindowSizeConstraints(ImVec2(0.f, 0.f),
                                             ImVec2(maxWidth, maxHeight));
 
-        ImGui::Begin("Visuals", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Begin("Visuals", nullptr,
+                    ImGuiWindowFlags_NoCollapse |
+                    ImGuiWindowFlags_AlwaysAutoResize);
 
         {
           ImVec2 pos = ImGui::GetWindowPos();
@@ -580,6 +603,13 @@ $on_mod(Loaded) {
               "Scarlet Utils: Visuals window pos=({}, {}) size=({}, {}) display=({}, {})",
               pos.x, pos.y, size.x, size.y, display.x, display.y);
         }
+
+        if (ImGui::ArrowButton("##collapseVisuals", visualsCollapsed ? ImGuiDir_Right : ImGuiDir_Down))
+          visualsCollapsed = !visualsCollapsed;
+        ImGui::SameLine();
+        ImGui::Text("Visuals");
+
+        if (!visualsCollapsed) {
 
             ImGui::Checkbox("Level Fade In/Out", &fadeLevel);
             if (ImGui::IsItemEdited()) {
@@ -746,6 +776,8 @@ $on_mod(Loaded) {
             if (ImGui::IsItemEdited()) {
               Mod::get()->setSavedValue<bool>("optimizeStackedOrbs", optimizeStackedOrbs);
             }
+
+        } // !visualsCollapsed
 
         ImGui::End();
       });
