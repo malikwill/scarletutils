@@ -3,6 +3,7 @@
 #include "includes.hpp"
 #include <imgui-cocos.hpp>
 #include <imgui.h>
+#include <cfloat>
 
 using namespace geode::prelude;
 
@@ -152,6 +153,15 @@ $on_mod(Loaded) {
         if (!menuVisible)
           return;
 
+        // Scale the whole menu up a bit. FontGlobalScale magnifies the
+        // already-baked font texture (cheap, no atlas rebuild, so it can't
+        // glitch the way rebaking a bigger font would), and ScaleAllSizes
+        // below scales padding/spacing by the same factor. The long warning
+        // text is wrapped and the window width is capped below, so neither
+        // can blow the window out past the screen the way they did before.
+        const float uiScale = 1.25f;
+        ImGui::GetIO().FontGlobalScale = uiScale;
+
         ImGuiStyle &style = ImGui::GetStyle();
 
         style.Alpha = 1.0f;
@@ -238,11 +248,19 @@ $on_mod(Loaded) {
         style.Colors[ImGuiCol_NavWindowingDimBg] = ImVec4(1e-6f, 5.9227466e-7f, 5.9227466e-7f, 0.2f);
         style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(1e-6f, 5.751073e-7f, 5.751073e-7f, 0.35f);
 
+        // Scale every size (padding, spacing, rounding, scrollbar, grips,
+        // etc.) by the same factor as the font above.
+        style.ScaleAllSizes(uiScale);
+
         // Force a known, fully-on-screen position every time the window is
         // freshly opened (not just the very first time ever) so it can't
-        // get stuck off-screen if a bad position was ever recorded. Size is
-        // left alone (normal/auto), only position is reset.
+        // get stuck off-screen if a bad position was ever recorded.
         ImGui::SetNextWindowPos(ImVec2(40.f, 40.f), ImGuiCond_Appearing);
+        // Cap the max width so a long tooltip/warning line can never force
+        // the AlwaysAutoResize window past the screen edge again (the long
+        // Silicate warning below is TextWrapped now too, belt-and-suspenders).
+        ImGui::SetNextWindowSizeConstraints(ImVec2(0.f, 0.f),
+                                            ImVec2(420.f * uiScale, FLT_MAX));
 
         ImGui::Begin("Scarlet Utils", nullptr,
                     ImGuiWindowFlags_NoCollapse |
