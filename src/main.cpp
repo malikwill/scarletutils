@@ -160,13 +160,12 @@ $on_mod(Loaded) {
         if (!menuVisible)
           return;
 
-        // Scale the whole menu up a bit. FontGlobalScale magnifies the
-        // already-baked font texture (cheap, no atlas rebuild, so it can't
-        // glitch the way rebaking a bigger font would), and ScaleAllSizes
-        // below scales padding/spacing by the same factor. The long warning
-        // text is wrapped and the window width is capped below, so neither
-        // can blow the window out past the screen the way they did before.
-        const float uiScale = 1.6f;
+        // Scale the whole menu down — everything (font, padding, spacing)
+        // shrinks together via FontGlobalScale (magnifies/shrinks the
+        // already-baked font texture, no atlas rebuild) and ScaleAllSizes
+        // below, which is applied once only (see the one-time guard further
+        // down) so it can never compound across frames the way it did before.
+        const float uiScale = 0.75f;
         ImGui::GetIO().FontGlobalScale = uiScale;
 
         ImGuiStyle &style = ImGui::GetStyle();
@@ -270,37 +269,38 @@ $on_mod(Loaded) {
           scaledStyleOnce = true;
         }
 
-        // Force a known, fully-on-screen position every time the window is
-        // freshly opened (not just the very first time ever) so it can't
-        // get stuck off-screen if a bad position was ever recorded.
-        ImGui::SetNextWindowPos(ImVec2(40.f, 40.f), ImGuiCond_Appearing);
-        // Cap the max width so a long tooltip/warning line can never force
-        // the AlwaysAutoResize window past the screen edge again (the long
-        // Silicate warning below is TextWrapped now too, belt-and-suspenders).
-        // Width scales with uiScale (bigger scale = wider window, as wanted),
-        // but height is capped to a fraction of the real screen height
-        // regardless of scale, so a bigger uiScale makes everything larger
-        // without the window creeping taller and taller — it scrolls
-        // internally instead once content passes that height.
-        float maxHeight = ImGui::GetIO().DisplaySize.y * 0.75f;
-        ImGui::SetNextWindowSizeConstraints(ImVec2(0.f, 0.f),
-                                            ImVec2(420.f * uiScale, maxHeight));
+        // Cap each window's shape explicitly: noticeably wider than it is
+        // tall, and both caps kept fairly tight so the overall footprint of
+        // either one stays small. Content that doesn't fit the short height
+        // just scrolls (ImGui adds a scrollbar automatically since
+        // NoScrollbar isn't set) rather than growing the window taller.
+        // Both are also clamped against the real screen size so neither can
+        // exceed it on a small display. The long Silicate warning text is
+        // TextWrapped, so it can't force the width out either.
+        float maxWidth = std::min(320.f, ImGui::GetIO().DisplaySize.x * 0.45f);
+        float maxHeight = std::min(220.f, ImGui::GetIO().DisplaySize.y * 0.4f);
 
-        ImGui::Begin("Scarlet Utils", nullptr,
-                    ImGuiWindowFlags_NoCollapse |
-                    ImGuiWindowFlags_AlwaysAutoResize);
+        // Main and Visuals are now two separate, independently draggable
+        // windows side by side instead of tabs inside one window. Each has
+        // its native collapse arrow enabled (NoCollapse removed) and starts
+        // collapsed the first time it appears each session, so opening the
+        // menu shows two small closed headers — click a window's arrow to
+        // rotate it open and reveal that section's options.
+        ImGui::SetNextWindowPos(ImVec2(40.f, 40.f), ImGuiCond_Appearing);
+        ImGui::SetNextWindowCollapsed(true, ImGuiCond_Appearing);
+        ImGui::SetNextWindowSizeConstraints(ImVec2(0.f, 0.f),
+                                            ImVec2(maxWidth, maxHeight));
+
+        ImGui::Begin("Main", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
         {
           ImVec2 pos = ImGui::GetWindowPos();
           ImVec2 size = ImGui::GetWindowSize();
           ImVec2 display = ImGui::GetIO().DisplaySize;
           geode::log::info(
-              "Scarlet Utils: window pos=({}, {}) size=({}, {}) display=({}, {})",
+              "Scarlet Utils: Main window pos=({}, {}) size=({}, {}) display=({}, {})",
               pos.x, pos.y, size.x, size.y, display.x, display.y);
         }
-
-        if (ImGui::BeginTabBar("main")) {
-          if (ImGui::BeginTabItem("Gameplay")) {
 
             bool flipOnDeathSilicateAvailable = Loader::get()->isModLoaded("peony.silicate");
 
@@ -562,10 +562,25 @@ $on_mod(Loaded) {
               ImGui::PopItemWidth();
               ImGui::EndPopup();
             }
-            ImGui::EndTabItem();
-          }
 
-          if (ImGui::BeginTabItem("Visual")) {
+        ImGui::End();
+
+        ImGui::SetNextWindowPos(ImVec2(40.f + maxWidth + 20.f, 40.f), ImGuiCond_Appearing);
+        ImGui::SetNextWindowCollapsed(true, ImGuiCond_Appearing);
+        ImGui::SetNextWindowSizeConstraints(ImVec2(0.f, 0.f),
+                                            ImVec2(maxWidth, maxHeight));
+
+        ImGui::Begin("Visuals", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+
+        {
+          ImVec2 pos = ImGui::GetWindowPos();
+          ImVec2 size = ImGui::GetWindowSize();
+          ImVec2 display = ImGui::GetIO().DisplaySize;
+          geode::log::info(
+              "Scarlet Utils: Visuals window pos=({}, {}) size=({}, {}) display=({}, {})",
+              pos.x, pos.y, size.x, size.y, display.x, display.y);
+        }
+
             ImGui::Checkbox("Level Fade In/Out", &fadeLevel);
             if (ImGui::IsItemEdited()) {
               Mod::get()->setSavedValue<bool>("fadeLevel", fadeLevel);
@@ -731,10 +746,7 @@ $on_mod(Loaded) {
             if (ImGui::IsItemEdited()) {
               Mod::get()->setSavedValue<bool>("optimizeStackedOrbs", optimizeStackedOrbs);
             }
-            ImGui::EndTabItem();
-          }
-          ImGui::EndTabBar();
-        }
+
         ImGui::End();
       });
 }
