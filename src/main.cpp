@@ -156,6 +156,24 @@ $on_mod(Loaded) {
         if (menuVisible != wasVisible) {
           geode::log::info("Scarlet Utils: draw() sees menuVisible -> {}", menuVisible);
           wasVisible = menuVisible;
+
+          if (menuVisible) {
+            // Whatever press just opened the menu (keybind or the pause
+            // button) can leave ImGui thinking a mouse button is still down
+            // right as this window first appears at a fixed screen spot.
+            // Left unchecked, ImGui reads that as "the user is dragging the
+            // title bar", and the drag delta compounds every single frame
+            // with nothing to stop it — which is exactly what the window
+            // pos=(...) log spam showed: position doubling frame over frame
+            // until it overflowed int32. ImGui's window-drag logic only
+            // keeps moving a window while MouseDown is simultaneously true,
+            // so clearing it here stops the drag being applied this frame,
+            // no matter what stale state carried over into it.
+            ImGuiIO &io = ImGui::GetIO();
+            io.MouseDown[0] = false;
+            io.MouseDown[1] = false;
+            io.MouseDown[2] = false;
+          }
         }
 
         if (!menuVisible)
