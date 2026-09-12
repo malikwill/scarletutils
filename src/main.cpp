@@ -3,7 +3,6 @@
 #include "includes.hpp"
 #include <imgui-cocos.hpp>
 #include <imgui.h>
-#include <cfloat>
 
 using namespace geode::prelude;
 
@@ -153,13 +152,6 @@ $on_mod(Loaded) {
         if (!menuVisible)
           return;
 
-        // Scale the whole menu up a bit. FontGlobalScale magnifies the
-        // already-baked font texture (cheap, no atlas rebuild, so it won't
-        // glitch), and ScaleAllSizes below scales padding/spacing by the
-        // same factor so proportions stay consistent.
-        const float uiScale = 1.15f;
-        ImGui::GetIO().FontGlobalScale = uiScale;
-
         ImGuiStyle &style = ImGui::GetStyle();
 
         style.Alpha = 1.0f;
@@ -245,19 +237,6 @@ $on_mod(Loaded) {
         style.Colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.0f, 0.0f, 0.0f, 0.7f);
         style.Colors[ImGuiCol_NavWindowingDimBg] = ImVec4(1e-6f, 5.9227466e-7f, 5.9227466e-7f, 0.2f);
         style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(1e-6f, 5.751073e-7f, 5.751073e-7f, 0.35f);
-
-        // Scale every size (padding, spacing, rounding, scrollbar, grips, etc.)
-        // by the same factor as the font above. This also enlarges the title
-        // bar, which is the window's drag handle, making it easier to grab.
-        style.ScaleAllSizes(uiScale);
-
-        // Give it a sane, fully-on-screen starting spot the first time it's
-        // ever opened (the user can still drag it anywhere after that), and
-        // cap the max width so a long tooltip/warning line can never force
-        // the whole AlwaysAutoResize window to blow out past the screen edge.
-        ImGui::SetNextWindowPos(ImVec2(40.f, 40.f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSizeConstraints(ImVec2(0.f, 0.f),
-                                            ImVec2(420.f * uiScale, FLT_MAX));
 
         ImGui::Begin("Scarlet Utils", nullptr,
                     ImGuiWindowFlags_NoCollapse |
