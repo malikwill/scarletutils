@@ -132,8 +132,10 @@ $on_mod(Loaded) {
   listenForKeybindSettingPresses(
   "scarlet.utils/menu",
   [](Keybind const &keybind, bool down, bool repeat, double timestamp) {
-    if (down && !repeat)
+    if (down && !repeat) {
       menuVisible = !menuVisible;
+      geode::log::info("Scarlet Utils: keybind toggled menuVisible -> {}", menuVisible);
+    }
     }
   );
 
@@ -150,6 +152,12 @@ $on_mod(Loaded) {
         fontSize);
         ImGui::GetIO().FontDefault = font;
       }).draw([&] {
+        static bool wasVisible = false;
+        if (menuVisible != wasVisible) {
+          geode::log::info("Scarlet Utils: draw() sees menuVisible -> {}", menuVisible);
+          wasVisible = menuVisible;
+        }
+
         if (!menuVisible)
           return;
 
@@ -265,6 +273,15 @@ $on_mod(Loaded) {
         ImGui::Begin("Scarlet Utils", nullptr,
                     ImGuiWindowFlags_NoCollapse |
                     ImGuiWindowFlags_AlwaysAutoResize);
+
+        {
+          ImVec2 pos = ImGui::GetWindowPos();
+          ImVec2 size = ImGui::GetWindowSize();
+          ImVec2 display = ImGui::GetIO().DisplaySize;
+          geode::log::info(
+              "Scarlet Utils: window pos=({}, {}) size=({}, {}) display=({}, {})",
+              pos.x, pos.y, size.x, size.y, display.x, display.y);
+        }
 
         if (ImGui::BeginTabBar("main")) {
           if (ImGui::BeginTabItem("Gameplay")) {
