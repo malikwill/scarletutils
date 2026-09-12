@@ -156,24 +156,6 @@ $on_mod(Loaded) {
         if (menuVisible != wasVisible) {
           geode::log::info("Scarlet Utils: draw() sees menuVisible -> {}", menuVisible);
           wasVisible = menuVisible;
-
-          if (menuVisible) {
-            // Whatever press just opened the menu (keybind or the pause
-            // button) can leave ImGui thinking a mouse button is still down
-            // right as this window first appears at a fixed screen spot.
-            // Left unchecked, ImGui reads that as "the user is dragging the
-            // title bar", and the drag delta compounds every single frame
-            // with nothing to stop it — which is exactly what the window
-            // pos=(...) log spam showed: position doubling frame over frame
-            // until it overflowed int32. ImGui's window-drag logic only
-            // keeps moving a window while MouseDown is simultaneously true,
-            // so clearing it here stops the drag being applied this frame,
-            // no matter what stale state carried over into it.
-            ImGuiIO &io = ImGui::GetIO();
-            io.MouseDown[0] = false;
-            io.MouseDown[1] = false;
-            io.MouseDown[2] = false;
-          }
         }
 
         if (!menuVisible)
@@ -275,8 +257,19 @@ $on_mod(Loaded) {
         style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(1e-6f, 5.751073e-7f, 5.751073e-7f, 0.35f);
 
         // Scale every size (padding, spacing, rounding, scrollbar, grips,
-        // etc.) by the same factor as the font above.
-        style.ScaleAllSizes(uiScale);
+        // etc.) by the same factor as the font above. ScaleAllSizes MULTIPLIES
+        // whatever is currently in the style struct rather than resetting
+        // first — some fields it touches (e.g. DisplaySafeAreaPadding) are
+        // never explicitly reset elsewhere in this block, so calling this
+        // every frame compounded them by uiScale every single frame forever,
+        // which is what was actually flinging the window off-screen (not a
+        // real drag). It only needs to run once, ever, same as ImGui's own
+        // documented DPI-rescale use case for this function.
+        static bool scaledStyleOnce = false;
+        if (!scaledStyleOnce) {
+          style.ScaleAllSizes(uiScale);
+          scaledStyleOnce = true;
+        }
 
         // Force a known, fully-on-screen position every time the window is
         // freshly opened (not just the very first time ever) so it can't
