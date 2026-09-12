@@ -367,6 +367,7 @@ $on_mod(Loaded) {
                 Mod::get()->setSavedValue<double>("straightFlyThresholdP1",
                                                   straightFlyThresholdP1);
               }
+              ImGui::PopItemWidth();
 
               ImGui::Checkbox("Player 2##ship", &straightFlyP2);
               if (ImGui::IsItemEdited()) {
@@ -381,6 +382,7 @@ $on_mod(Loaded) {
                 Mod::get()->setSavedValue<double>("straightFlyThresholdP2",
                                                   straightFlyThresholdP2);
               }
+              ImGui::PopItemWidth();
               ImGui::EndPopup();
             }
 
@@ -417,6 +419,7 @@ $on_mod(Loaded) {
                 Mod::get()->setSavedValue<double>("straightUfoThresholdP1",
                                                   straightUfoThresholdP1);
               }
+              ImGui::PopItemWidth();
 
               ImGui::Checkbox("Player 2##ufo", &straightUfoP2);
               if (ImGui::IsItemEdited()) {
@@ -439,6 +442,7 @@ $on_mod(Loaded) {
                 Mod::get()->setSavedValue<double>("straightUfoThresholdP2",
                                                   straightUfoThresholdP2);
               }
+              ImGui::PopItemWidth();
               ImGui::EndPopup();
             }
 
@@ -465,6 +469,7 @@ $on_mod(Loaded) {
               }
 
               ImGui::Checkbox("Swift##autoclickP1", &autoclickerSwiftP1);
+              ImGui::PopItemWidth();
               ImGui::EndPopup();
             }
 
@@ -491,6 +496,7 @@ $on_mod(Loaded) {
               }
 
               ImGui::Checkbox("Swift##autoclickP2", &autoclickerSwiftP2);
+              ImGui::PopItemWidth();
               ImGui::EndPopup();
             }
 
@@ -517,6 +523,7 @@ $on_mod(Loaded) {
             if (ImGui::BeginPopup("extra click options")) {
               ImGui::PushItemWidth(100.f);
               ImGui::InputInt("Amount##extraclicks", &extraClickAmount, 0, 0);
+              ImGui::PopItemWidth();
               ImGui::EndPopup();
             }
             ImGui::EndTabItem();
@@ -568,6 +575,7 @@ $on_mod(Loaded) {
                 Mod::get()->setSavedValue<double>("fadeLevelOutTimeout",
                                                   fadeLevelOutTimeout);
               }
+              ImGui::PopItemWidth();
               ImGui::EndPopup();
             }
 
@@ -603,6 +611,7 @@ $on_mod(Loaded) {
                 Mod::get()->setSavedValue<double>("fadeAudioOutDuration",
                                                   fadeAudioOutDuration);
               }
+              ImGui::PopItemWidth();
               ImGui::EndPopup();
             }
 
