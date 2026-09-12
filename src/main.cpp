@@ -3,7 +3,6 @@
 #include "includes.hpp"
 #include <imgui-cocos.hpp>
 #include <imgui.h>
-#include <cfloat>
 
 using namespace geode::prelude;
 
@@ -167,7 +166,7 @@ $on_mod(Loaded) {
         // below scales padding/spacing by the same factor. The long warning
         // text is wrapped and the window width is capped below, so neither
         // can blow the window out past the screen the way they did before.
-        const float uiScale = 1.25f;
+        const float uiScale = 1.6f;
         ImGui::GetIO().FontGlobalScale = uiScale;
 
         ImGuiStyle &style = ImGui::GetStyle();
@@ -278,8 +277,14 @@ $on_mod(Loaded) {
         // Cap the max width so a long tooltip/warning line can never force
         // the AlwaysAutoResize window past the screen edge again (the long
         // Silicate warning below is TextWrapped now too, belt-and-suspenders).
+        // Width scales with uiScale (bigger scale = wider window, as wanted),
+        // but height is capped to a fraction of the real screen height
+        // regardless of scale, so a bigger uiScale makes everything larger
+        // without the window creeping taller and taller — it scrolls
+        // internally instead once content passes that height.
+        float maxHeight = ImGui::GetIO().DisplaySize.y * 0.75f;
         ImGui::SetNextWindowSizeConstraints(ImVec2(0.f, 0.f),
-                                            ImVec2(420.f * uiScale, FLT_MAX));
+                                            ImVec2(420.f * uiScale, maxHeight));
 
         ImGui::Begin("Scarlet Utils", nullptr,
                     ImGuiWindowFlags_NoCollapse |
