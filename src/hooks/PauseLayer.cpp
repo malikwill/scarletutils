@@ -8,7 +8,10 @@ class $modify(ScarletUtilsPauseLayerHook, PauseLayer) {
         PauseLayer::customSetup();
 
         auto rightButtonMenu = this->getChildByID("right-button-menu");
-        if (!rightButtonMenu) return;
+        if (!rightButtonMenu) {
+            geode::log::info("Scarlet Utils: right-button-menu not found, button not added");
+            return;
+        }
 
         auto sprite = CCSprite::create("logo-button.png"_spr);
 
@@ -21,9 +24,12 @@ class $modify(ScarletUtilsPauseLayerHook, PauseLayer) {
 
         rightButtonMenu->addChild(btn);
         rightButtonMenu->updateLayout();
+
+        geode::log::info("Scarlet Utils: pause menu button added");
     }
 
     void onButton(CCObject* sender) {
         menuVisible = !menuVisible;
+        geode::log::info("Scarlet Utils: pause button toggled menuVisible -> {}", menuVisible);
     }
 };
