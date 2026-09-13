@@ -103,7 +103,14 @@ void runMirrorInput() {
 
         if (changed) {
             bool target = mirrorInputInverted ? !p1Holding : p1Holding;
-            bgl->m_queuedButtons.clear();
+            // No clear() here — player 1's own real button press/release for
+            // this exact frame is already sitting in this same queue from
+            // GD's normal input handling. Clearing before adding only the
+            // player 2 correction (as this did before) wiped that real event
+            // out, which is exactly why player 1 stopped responding to its
+            // own input the moment this feature was turned on. Just append
+            // the correction instead and leave whatever's already queued
+            // alone.
             bgl->queueButton((int)PlayerButton::Jump, target,
                 !GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls), 0.0);
 
