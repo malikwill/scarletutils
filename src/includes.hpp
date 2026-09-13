@@ -8,6 +8,11 @@ extern HWND hwnd;
 #endif
 extern bool menuVisible;
 
+// Gates every diagnostic geode::log::info call this mod makes. Reads the
+// "Verbose Logging" mod setting (off by default) rather than caching it, so
+// toggling the setting takes effect immediately without needing a restart.
+bool verboseLoggingEnabled();
+
 extern bool noDeathEffect;
 extern bool hideEndscreen;
 extern bool hideNewBest;
@@ -47,7 +52,6 @@ extern bool flipOnDeathLogicP2;
 extern bool flipOnDeathSwift;
 extern bool flipOnDeathUnfreeze;
 
-extern bool autoUnfreeze;
 extern bool autoSwift;
 extern bool extraClick;
 extern int  extraClickAmount;
@@ -64,6 +68,8 @@ extern bool straightUfo;
 extern bool maintainGravity;
 extern bool maintainGravityP1;
 extern bool maintainGravityP2;
+extern bool mirrorInput;
+extern bool mirrorInputInverted;
 
 extern bool autoclickerP1;
 extern bool autoclickerP2;
@@ -85,7 +91,6 @@ extern bool noclip;
 extern bool noclipP1;
 extern bool noclipP2;
 
-extern bool spamCheckpoints;
 extern bool restartFirstFrame;
 
 extern bool layoutMode;

@@ -8,6 +8,10 @@ using namespace geode::prelude;
 
 bool menuVisible = false;
 
+bool verboseLoggingEnabled() {
+  return Mod::get()->getSettingValue<bool>("scarlet.utils/verbose-logging");
+}
+
 #ifdef GEODE_IS_WINDOWS
 HWND hwnd = FindWindow(NULL, "Geometry Dash");
 #endif
@@ -53,7 +57,6 @@ bool flipOnDeathLogicP1 = true;
 bool flipOnDeathSwift = false;
 bool flipOnDeathUnfreeze = false;
 
-bool autoUnfreeze = false;
 bool autoSwift = false;
 bool extraClick = false;
 int  extraClickAmount = 1;
@@ -70,6 +73,8 @@ bool straightUfo = false;
 bool maintainGravity = false;
 bool maintainGravityP1 = true;
 bool maintainGravityP2 = true;
+bool mirrorInput = false;
+bool mirrorInputInverted = false;
 
 bool autoclickerP1 = false;
 bool autoclickerP2 = false;
@@ -91,7 +96,6 @@ bool noclip = false;
 bool noclipP1 = true;
 bool noclipP2 = true;
 
-bool spamCheckpoints = false;
 bool restartFirstFrame = false;
 
 bool layoutMode = false;
@@ -133,7 +137,8 @@ $on_mod(Loaded) {
   [](Keybind const &keybind, bool down, bool repeat, double timestamp) {
     if (down && !repeat) {
       menuVisible = !menuVisible;
-      geode::log::info("Scarlet Utils: keybind toggled menuVisible -> {}", menuVisible);
+      if (verboseLoggingEnabled())
+        geode::log::info("Scarlet Utils: keybind toggled menuVisible -> {}", menuVisible);
     }
     }
   );
@@ -158,7 +163,8 @@ $on_mod(Loaded) {
         const double closeAnimDuration = 0.15;
 
         if (menuVisible != wasVisible) {
-          geode::log::info("Scarlet Utils: draw() sees menuVisible -> {}", menuVisible);
+          if (verboseLoggingEnabled())
+            geode::log::info("Scarlet Utils: draw() sees menuVisible -> {}", menuVisible);
           wasVisible = menuVisible;
           if (menuVisible) {
             // Only slide-in the very first time the menu is ever opened this
@@ -310,40 +316,32 @@ $on_mod(Loaded) {
         float maxHeight = std::min(220.f, ImGui::GetIO().DisplaySize.y * 0.4f);
 
         // Quick open animation: for a short window right after menuVisible
-        // flips true, both windows get their position forced every frame
-        // (interpolated), sliding into their resting spots instead of just
-        // popping in. Once the animation finishes we stop touching position
-        // entirely so normal dragging takes back over.
+        // flips true, both windows fade in (alpha 0 -> 1) instead of the
+        // slide-down drop used originally — same mechanism as the close
+        // fade below, just running the other direction. Position is only
+        // ever set once, on the very first-ever open (see the Begin calls
+        // further down); it's never reset after that, so dragging is
+        // preserved across every later open/close.
         const double openAnimDuration = 0.2;
         double animT = 1.0;
         if (openAnimStart >= 0.0)
           animT = (ImGui::GetTime() - openAnimStart) / openAnimDuration;
         animT = animT < 0.0 ? 0.0 : (animT > 1.0 ? 1.0 : animT);
-        float animEase = 1.f - (1.f - (float)animT) * (1.f - (float)animT); // ease-out quad
         bool animating = animT < 1.0;
 
         ImVec2 mainTarget(40.f, 40.f);
         ImVec2 visualsTarget(40.f + maxWidth + 20.f, 40.f);
-        // Both windows start off above their resting spot and drop straight
-        // down into place together — simple parallel slide-in, no per-window
-        // stagger or curve beyond the single ease-out below.
-        ImVec2 mainFrom(mainTarget.x, mainTarget.y - 80.f);
-        ImVec2 visualsFrom(visualsTarget.x, visualsTarget.y - 80.f);
 
-        // Closing fades the whole menu out over a short beat instead of
-        // just vanishing — kept to a plain alpha fade (no repositioning)
-        // since we don't know where the user may have dragged either
-        // window to, and fading in place works regardless of where that is.
-        float closeAlpha = 1.f;
+        // One shared alpha value: fades in on open, fades out on close.
+        // Same plain fade both directions, nothing more elaborate needed.
+        float windowAlpha = 1.f;
+        if (animating)
+          windowAlpha = (float)animT; // linear fade-in, quick enough not to need easing
         if (closing) {
           double closeT = (ImGui::GetTime() - closeAnimStart) / closeAnimDuration;
           closeT = closeT < 0.0 ? 0.0 : (closeT > 1.0 ? 1.0 : closeT);
-          closeAlpha = 1.f - (float)closeT;
+          windowAlpha = 1.f - (float)closeT;
         }
-
-        auto lerp = [](ImVec2 a, ImVec2 b, float t) {
-          return ImVec2(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
-        };
 
         // Small hand-drawn arrow that actually rotates through in-between
         // angles as it toggles, unlike ImGui's built-in ArrowButton which
@@ -398,19 +396,19 @@ $on_mod(Loaded) {
         static float visualsArrowAngle = 0.f;
 
         if (animating)
-          ImGui::SetNextWindowPos(lerp(mainFrom, mainTarget, animEase), ImGuiCond_Always);
+          ImGui::SetNextWindowPos(mainTarget, ImGuiCond_Always);
         // No position call otherwise — leaving position alone lets ImGui
         // keep whatever spot the window was last at (including anything the
         // user dragged it to) across every close/reopen after the first.
         ImGui::SetNextWindowSizeConstraints(ImVec2(0.f, 0.f),
                                             ImVec2(maxWidth, maxHeight));
 
-        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, closeAlpha);
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, windowAlpha);
         ImGui::Begin("Main", nullptr,
                     ImGuiWindowFlags_NoCollapse |
                     ImGuiWindowFlags_AlwaysAutoResize);
 
-        {
+        if (verboseLoggingEnabled()) {
           ImVec2 pos = ImGui::GetWindowPos();
           ImVec2 size = ImGui::GetWindowSize();
           ImVec2 display = ImGui::GetIO().DisplaySize;
@@ -497,6 +495,17 @@ $on_mod(Loaded) {
             if (ImGui::BeginPopup("maintain gravity options")) {
               ImGui::Checkbox("Player 1##maintaingravity", &maintainGravityP1);
               ImGui::Checkbox("Player 2##maintaingravity", &maintainGravityP2);
+              ImGui::EndPopup();
+            }
+
+            ImGui::Checkbox("Mirror Input", &mirrorInput);
+
+            ImGui::SameLine();
+            if (ImGui::ArrowButton("mi1", ImGuiDir_Right))
+              ImGui::OpenPopup("mirror input options");
+
+            if (ImGui::BeginPopup("mirror input options")) {
+              ImGui::Checkbox("Inverted##mirrorinput", &mirrorInputInverted);
               ImGui::EndPopup();
             }
 
@@ -692,17 +701,17 @@ $on_mod(Loaded) {
         ImGui::PopStyleVar(); // Alpha (Main)
 
         if (animating)
-          ImGui::SetNextWindowPos(lerp(visualsFrom, visualsTarget, animEase), ImGuiCond_Always);
+          ImGui::SetNextWindowPos(visualsTarget, ImGuiCond_Always);
         // No position call otherwise, same reasoning as Main above.
         ImGui::SetNextWindowSizeConstraints(ImVec2(0.f, 0.f),
                                             ImVec2(maxWidth, maxHeight));
 
-        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, closeAlpha);
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, windowAlpha);
         ImGui::Begin("Visuals", nullptr,
                     ImGuiWindowFlags_NoCollapse |
                     ImGuiWindowFlags_AlwaysAutoResize);
 
-        {
+        if (verboseLoggingEnabled()) {
           ImVec2 pos = ImGui::GetWindowPos();
           ImVec2 size = ImGui::GetWindowSize();
           ImVec2 display = ImGui::GetIO().DisplaySize;
