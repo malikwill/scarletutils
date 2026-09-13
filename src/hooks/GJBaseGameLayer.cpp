@@ -43,18 +43,28 @@ void runMaintainGravity() {
         if (GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls))
             std::swap(p1holding, p2holding);
 
-        bgl->m_queuedButtons.clear();
+        // Only clear the queue when we're actually about to replace it with
+        // our own correction below — clearing it unconditionally every
+        // frame (as before) wiped out real button presses on every frame
+        // that wasn't a flip frame, since nothing was queued back in their
+        // place. Corrections are now edge-triggered (see above), so most
+        // frames need to leave the queue completely untouched.
+        bool willCorrectP1 = maintainGravityP1 && flippedP1 &&
+            (p1holding || (autoclickerHoldingP1 && autoclickerP1)) != p1maintain;
+        bool willCorrectP2 = maintainGravityP2 && flippedP2 &&
+            (p2holding || (autoclickerHoldingP2 && autoclickerP2)) != p2maintain &&
+            bgl->m_gameState.m_isDualMode && bgl->m_levelSettings->m_twoPlayerMode;
 
-        if (maintainGravityP1 && flippedP1 &&
-            (p1holding || (autoclickerHoldingP1 && autoclickerP1)) != p1maintain) {
+        if (willCorrectP1 || willCorrectP2)
+            bgl->m_queuedButtons.clear();
+
+        if (willCorrectP1) {
             bgl->queueButton((int)PlayerButton::Jump, !bgl->m_player1->m_holdingButtons[1],
             GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls), 0.0);
             autoclickerTimerP1 = INT32_MAX;
         }
 
-        if (maintainGravityP2 && flippedP2 &&
-            (p2holding || (autoclickerHoldingP2 && autoclickerP2)) != p2maintain &&
-            bgl->m_gameState.m_isDualMode && bgl->m_levelSettings->m_twoPlayerMode) {
+        if (willCorrectP2) {
             bgl->queueButton((int)PlayerButton::Jump, !bgl->m_player2->m_holdingButtons[1],
             !GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls), 0.0);
             autoclickerTimerP2 = INT32_MAX;
