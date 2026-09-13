@@ -77,7 +77,7 @@ class $modify(ScarletPlayLayer, PlayLayer) {
             }
             if (flipOnDeathP2 && flipPlayer == 2 || flipOnDeathBoth) {
                 if (!flipOnDeathSwift) {
-                    if (flipOnDeathLogicP2 || flipOnDeathSwift) {
+                    if (flipOnDeathLogicP2) {
                         queueButton((int)PlayerButton::Jump, true, true ^
                         GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls),0.0);
                     }

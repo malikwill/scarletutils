@@ -25,6 +25,7 @@ class $modify(ScarletUtilsPauseLayerHook, PauseLayer) {
 
     void onButton(CCObject* sender) {
         menuVisible = !menuVisible;
-        geode::log::info("Scarlet Utils: pause button toggled menuVisible -> {}", menuVisible);
+        if (verboseLoggingEnabled())
+            geode::log::info("Scarlet Utils: pause button toggled menuVisible -> {}", menuVisible);
     }
 };

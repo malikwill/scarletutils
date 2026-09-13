@@ -72,6 +72,38 @@ void runMaintainGravity() {
     }
 }
 
+void runMirrorInput() {
+    auto bgl = GJBaseGameLayer::get();
+    if (mirrorInput) {
+        // Same reasoning as Maintain Gravity above: only fire the instant
+        // player 1's own input actually changes (press or release), never
+        // continuously — a continuous version would eat real input the
+        // exact same way Maintain Gravity's original version did.
+        static bool prevP1Holding = false;
+
+        bool p1Holding = bgl->m_uiLayer->m_p1Jumping || bgl->m_uiLayer->m_p1TouchId != -1;
+        bool p2HoldingRaw = bgl->m_uiLayer->m_p2Jumping || bgl->m_uiLayer->m_p2TouchId != -1;
+        if (GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls))
+            std::swap(p1Holding, p2HoldingRaw);
+
+        bool changed = p1Holding != prevP1Holding;
+        prevP1Holding = p1Holding;
+
+        if (changed) {
+            bool targetP2Hold = mirrorInputInverted ? !p1Holding : p1Holding;
+            // Note: this shares the same queue as Maintain Gravity's
+            // correction above. Both are edge-triggered on genuinely rare,
+            // narrow events (a gravity flip, or a real press/release), so
+            // the two clearing each other out in the same single tick is an
+            // accepted, very unlikely edge case rather than something
+            // worth restructuring both functions around.
+            bgl->m_queuedButtons.clear();
+            bgl->queueButton((int)PlayerButton::Jump, targetP2Hold,
+                !GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls), 0.0);
+        }
+    }
+}
+
 class $modify(ScarletGJBaseGameLayer, GJBaseGameLayer) {
     void playExitDualEffect(PlayerObject* player) {
         if (!(m_playerDied && noDeathEffect || noEffect))
@@ -80,6 +112,7 @@ class $modify(ScarletGJBaseGameLayer, GJBaseGameLayer) {
 
     void processQueuedButtons(float dt, bool clearInputQueue) {
         runMaintainGravity();
+        runMirrorInput();
         bool didReleaseGravityOrb = false;
         auto copy = m_queuedButtons;
         for (auto button : copy) {
@@ -383,5 +416,6 @@ $execute {
         }
         
         runMaintainGravity();
+        runMirrorInput();
     });
 };
