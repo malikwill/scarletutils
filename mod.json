@@ -8,7 +8,7 @@
 	},
 	"id": "scarlet.utils",
 	"name": "Scarlet Utils",
-	"version": "v2.5.1",
+	"version": "v2.6.0",
 	"developer": "scarlet",
 	"description": "Tools for botting and showcasing.",
 	"tags": ["cheat","gameplay","utility"],
@@ -22,6 +22,13 @@
 			"type": "keybind",
 			"default": "F",
 			"migrate-from": "scarlet.utils/menu",
+			"category": "universal"
+		},
+		"scarlet.utils/verbose-logging": {
+			"name": "Verbose Logging",
+			"description": "Logs menu open/close events and window position/size to the Geode console. Useful for diagnosing bugs — off by default so it doesn't spam the console during normal use.",
+			"type": "bool",
+			"default": false,
 			"category": "universal"
 		}
 	},
