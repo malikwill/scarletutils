@@ -76,30 +76,51 @@ void runMirrorInput() {
     auto bgl = GJBaseGameLayer::get();
     if (mirrorInput) {
         // Same reasoning as Maintain Gravity above: only fire the instant
-        // player 1's own input actually changes (press or release), never
+        // a player's own input actually changes (press or release), never
         // continuously — a continuous version would eat real input the
         // exact same way Maintain Gravity's original version did.
+        //
+        // Behavior: whichever player provides input is the "source" for
+        // that instant — the other player gets pushed to match it (or its
+        // opposite, if Inverted). Player 1 presses -> player 2 also
+        // presses. Player 2 presses -> player 1 also presses. Same for
+        // releasing. Same physical/logical swap as Maintain Gravity above
+        // so this still tracks the right player if Flip2PlayerControls is on.
         static bool prevP1Holding = false;
+        static bool prevP2Holding = false;
 
         bool p1Holding = bgl->m_uiLayer->m_p1Jumping || bgl->m_uiLayer->m_p1TouchId != -1;
-        bool p2HoldingRaw = bgl->m_uiLayer->m_p2Jumping || bgl->m_uiLayer->m_p2TouchId != -1;
+        bool p2Holding = bgl->m_uiLayer->m_p2Jumping || bgl->m_uiLayer->m_p2TouchId != -1;
         if (GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls))
-            std::swap(p1Holding, p2HoldingRaw);
+            std::swap(p1Holding, p2Holding);
 
-        bool changed = p1Holding != prevP1Holding;
+        bool p1Changed = p1Holding != prevP1Holding;
+        bool p2Changed = p2Holding != prevP2Holding;
         prevP1Holding = p1Holding;
+        prevP2Holding = p2Holding;
 
-        if (changed) {
-            bool targetP2Hold = mirrorInputInverted ? !p1Holding : p1Holding;
-            // Note: this shares the same queue as Maintain Gravity's
-            // correction above. Both are edge-triggered on genuinely rare,
-            // narrow events (a gravity flip, or a real press/release), so
-            // the two clearing each other out in the same single tick is an
-            // accepted, very unlikely edge case rather than something
-            // worth restructuring both functions around.
+        // Note: this shares the same queue as Maintain Gravity's correction
+        // above. Both are edge-triggered on genuinely rare, narrow events
+        // (a gravity flip, or a real press/release), so the two clearing
+        // each other out in the same single tick — or, here, player 1's and
+        // player 2's own changes clearing each other out if both somehow
+        // land on the exact same tick — is an accepted, very unlikely edge
+        // case rather than something worth restructuring around.
+        if (p1Changed || p2Changed)
             bgl->m_queuedButtons.clear();
-            bgl->queueButton((int)PlayerButton::Jump, targetP2Hold,
+
+        // Player 1 provided input -> mirror it onto player 2.
+        if (p1Changed) {
+            bool target = mirrorInputInverted ? !p1Holding : p1Holding;
+            bgl->queueButton((int)PlayerButton::Jump, target,
                 !GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls), 0.0);
+        }
+
+        // Player 2 provided input -> mirror it onto player 1.
+        if (p2Changed) {
+            bool target = mirrorInputInverted ? !p2Holding : p2Holding;
+            bgl->queueButton((int)PlayerButton::Jump, target,
+                GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls), 0.0);
         }
     }
 }
