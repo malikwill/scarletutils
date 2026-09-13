@@ -159,7 +159,7 @@ $on_mod(Loaded) {
         static bool wasVisible = false;
         static double openAnimStart = -1.0;
         static double closeAnimStart = -1.0;
-        static bool everOpened = false;
+        static bool positionInitialized = false;
         const double closeAnimDuration = 0.15;
 
         if (menuVisible != wasVisible) {
@@ -167,15 +167,13 @@ $on_mod(Loaded) {
             geode::log::info("Scarlet Utils: draw() sees menuVisible -> {}", menuVisible);
           wasVisible = menuVisible;
           if (menuVisible) {
-            // Only slide-in the very first time the menu is ever opened this
-            // session. Every open after that leaves position/collapsed
-            // state exactly as it was — previously the slide-in position
-            // was re-forced on every single reopen, which silently threw
-            // away wherever the user had dragged the windows to.
-            if (!everOpened) {
-              openAnimStart = ImGui::GetTime();
-              everOpened = true;
-            }
+            // The fade-in plays on every single open, not just the first —
+            // it was previously gated behind the same "only the very first
+            // time ever" flag used for positioning, which was wrong: fading
+            // doesn't touch position or dragged state at all, so there was
+            // never a reason to suppress it on later opens. Only the
+            // position force below still needs to be one-time.
+            openAnimStart = ImGui::GetTime();
             closeAnimStart = -1.0; // cancel any close animation in progress
           } else {
             closeAnimStart = ImGui::GetTime();
@@ -318,10 +316,12 @@ $on_mod(Loaded) {
         // Quick open animation: for a short window right after menuVisible
         // flips true, both windows fade in (alpha 0 -> 1) instead of the
         // slide-down drop used originally — same mechanism as the close
-        // fade below, just running the other direction. Position is only
-        // ever set once, on the very first-ever open (see the Begin calls
-        // further down); it's never reset after that, so dragging is
-        // preserved across every later open/close.
+        // fade below, just running the other direction. This plays on
+        // every open. Position is handled completely separately (see
+        // positionInitialized near the Begin calls below) and is only ever
+        // set once, on the true first-ever open — it's never reset after
+        // that regardless of how many times the fade itself replays, so
+        // dragging is preserved across every later open/close.
         const double openAnimDuration = 0.2;
         double animT = 1.0;
         if (openAnimStart >= 0.0)
@@ -395,7 +395,7 @@ $on_mod(Loaded) {
         static float mainArrowAngle = 0.f;
         static float visualsArrowAngle = 0.f;
 
-        if (animating)
+        if (!positionInitialized)
           ImGui::SetNextWindowPos(mainTarget, ImGuiCond_Always);
         // No position call otherwise — leaving position alone lets ImGui
         // keep whatever spot the window was last at (including anything the
@@ -700,11 +700,12 @@ $on_mod(Loaded) {
         ImGui::End();
         ImGui::PopStyleVar(); // Alpha (Main)
 
-        if (animating)
+        if (!positionInitialized)
           ImGui::SetNextWindowPos(visualsTarget, ImGuiCond_Always);
         // No position call otherwise, same reasoning as Main above.
         ImGui::SetNextWindowSizeConstraints(ImVec2(0.f, 0.f),
                                             ImVec2(maxWidth, maxHeight));
+        positionInitialized = true;
 
         ImGui::PushStyleVar(ImGuiStyleVar_Alpha, windowAlpha);
         ImGui::Begin("Visuals", nullptr,
