@@ -152,9 +152,12 @@ $on_mod(Loaded) {
         ImGui::GetIO().FontDefault = font;
       }).draw([&] {
         static bool wasVisible = false;
+        static double openAnimStart = -1.0;
         if (menuVisible != wasVisible) {
           geode::log::info("Scarlet Utils: draw() sees menuVisible -> {}", menuVisible);
           wasVisible = menuVisible;
+          if (menuVisible)
+            openAnimStart = ImGui::GetTime();
         }
 
         if (!menuVisible)
@@ -285,20 +288,87 @@ $on_mod(Loaded) {
         float maxWidth = std::min(320.f, ImGui::GetIO().DisplaySize.x * 0.45f);
         float maxHeight = std::min(220.f, ImGui::GetIO().DisplaySize.y * 0.4f);
 
+        // Quick open animation: for a short window right after menuVisible
+        // flips true, both windows get their position forced every frame
+        // (interpolated), sliding into their resting spots instead of just
+        // popping in. Once the animation finishes we stop touching position
+        // entirely so normal dragging takes back over.
+        const double openAnimDuration = 0.2;
+        double animT = 1.0;
+        if (openAnimStart >= 0.0)
+          animT = (ImGui::GetTime() - openAnimStart) / openAnimDuration;
+        animT = animT < 0.0 ? 0.0 : (animT > 1.0 ? 1.0 : animT);
+        float animEase = 1.f - (1.f - (float)animT) * (1.f - (float)animT); // ease-out quad
+        bool animating = animT < 1.0;
+
+        ImVec2 mainTarget(40.f, 40.f);
+        ImVec2 visualsTarget(40.f + maxWidth + 20.f, 40.f);
+        // Both windows start off above their resting spot and drop straight
+        // down into place together — simple parallel slide-in, no per-window
+        // stagger or curve beyond the single ease-out below.
+        ImVec2 mainFrom(mainTarget.x, mainTarget.y - 80.f);
+        ImVec2 visualsFrom(visualsTarget.x, visualsTarget.y - 80.f);
+
+        auto lerp = [](ImVec2 a, ImVec2 b, float t) {
+          return ImVec2(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
+        };
+
+        // Small hand-drawn arrow that actually rotates through in-between
+        // angles as it toggles, unlike ImGui's built-in ArrowButton which
+        // only supports four fixed directions. Kept deliberately simple:
+        // one lerp per frame, no easing library, no extra draw calls beyond
+        // a single filled triangle.
+        auto collapseArrow = [&](const char *id, bool &collapsed, float &angleDeg) {
+          float target = collapsed ? 0.f : 90.f;
+          float speed = 720.f; // degrees/sec — quick but still visible
+          float dt = ImGui::GetIO().DeltaTime;
+          if (angleDeg < target)
+            angleDeg = std::min(angleDeg + speed * dt, target);
+          else if (angleDeg > target)
+            angleDeg = std::max(angleDeg - speed * dt, target);
+
+          float size = ImGui::GetFrameHeight();
+          ImVec2 topLeft = ImGui::GetCursorScreenPos();
+          ImGui::InvisibleButton(id, ImVec2(size, size));
+          bool clicked = ImGui::IsItemClicked();
+
+          ImVec2 center(topLeft.x + size * 0.5f, topLeft.y + size * 0.5f);
+          float r = size * 0.28f;
+          float rad = angleDeg * (3.14159265f / 180.f);
+          float c = cosf(rad), s = sinf(rad);
+          auto rot = [&](float x, float y) {
+            return ImVec2(center.x + x * c - y * s, center.y + x * s + y * c);
+          };
+          ImVec2 p1 = rot(-r, -r * 1.15f);
+          ImVec2 p2 = rot(-r, r * 1.15f);
+          ImVec2 p3 = rot(r * 1.3f, 0.f);
+
+          ImU32 col = ImGui::GetColorU32(ImGuiCol_Text);
+          ImGui::GetWindowDrawList()->AddTriangleFilled(p1, p2, p3, col);
+
+          if (clicked)
+            collapsed = !collapsed;
+        };
+
         // Main and Visuals are two separate, independently draggable windows
         // side by side. ImGui's native collapse arrow was tried here first,
         // but combining it with AlwaysAutoResize produced a one-frame glitch
         // where content drew before its background panel caught up (the
         // "solid black, floating checkboxes" look), and the built-in arrow
         // glyph was too small/low-contrast to spot at this scale anyway. So
-        // collapsing is handled manually instead, with the exact same
-        // ArrowButton widget used for every other collapsible section in
-        // this menu (Flip Input On Death, Noclip, etc.) — same look, same
-        // click target, and no native-collapse transition to glitch.
+        // collapsing is handled manually instead, with a small custom arrow
+        // that actually rotates — same idea as the ArrowButton used for
+        // every other collapsible section in this menu (Flip Input On
+        // Death, Noclip, etc.), just animated.
         static bool mainCollapsed = true;
         static bool visualsCollapsed = true;
+        static float mainArrowAngle = 0.f;
+        static float visualsArrowAngle = 0.f;
 
-        ImGui::SetNextWindowPos(ImVec2(40.f, 40.f), ImGuiCond_Appearing);
+        if (animating)
+          ImGui::SetNextWindowPos(lerp(mainFrom, mainTarget, animEase), ImGuiCond_Always);
+        else
+          ImGui::SetNextWindowPos(mainTarget, ImGuiCond_Appearing);
         ImGui::SetNextWindowSizeConstraints(ImVec2(0.f, 0.f),
                                             ImVec2(maxWidth, maxHeight));
 
@@ -315,8 +385,7 @@ $on_mod(Loaded) {
               pos.x, pos.y, size.x, size.y, display.x, display.y);
         }
 
-        if (ImGui::ArrowButton("##collapseMain", mainCollapsed ? ImGuiDir_Right : ImGuiDir_Down))
-          mainCollapsed = !mainCollapsed;
+        collapseArrow("##collapseMain", mainCollapsed, mainArrowAngle);
         ImGui::SameLine();
         ImGui::Text("Main");
 
@@ -587,7 +656,10 @@ $on_mod(Loaded) {
 
         ImGui::End();
 
-        ImGui::SetNextWindowPos(ImVec2(40.f + maxWidth + 20.f, 40.f), ImGuiCond_Appearing);
+        if (animating)
+          ImGui::SetNextWindowPos(lerp(visualsFrom, visualsTarget, animEase), ImGuiCond_Always);
+        else
+          ImGui::SetNextWindowPos(visualsTarget, ImGuiCond_Appearing);
         ImGui::SetNextWindowSizeConstraints(ImVec2(0.f, 0.f),
                                             ImVec2(maxWidth, maxHeight));
 
@@ -604,8 +676,7 @@ $on_mod(Loaded) {
               pos.x, pos.y, size.x, size.y, display.x, display.y);
         }
 
-        if (ImGui::ArrowButton("##collapseVisuals", visualsCollapsed ? ImGuiDir_Right : ImGuiDir_Down))
-          visualsCollapsed = !visualsCollapsed;
+        collapseArrow("##collapseVisuals", visualsCollapsed, visualsArrowAngle);
         ImGui::SameLine();
         ImGui::Text("Visuals");
 
