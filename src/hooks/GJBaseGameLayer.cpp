@@ -14,6 +14,26 @@ using namespace geode::prelude;
 void runMaintainGravity() {
     auto bgl = GJBaseGameLayer::get();
     if (maintainGravity) {
+        // The correction below is only meaningful right at the moment
+        // gravity actually flips — that's the one instant GD's own hold
+        // tracking can get out of sync with reality. Previously this ran
+        // unconditionally every single frame the raw comparison looked
+        // mismatched, which isn't the same thing: while the player is
+        // genuinely holding input, that comparison can stay "mismatched"
+        // for reasons unrelated to a real flip, so it kept re-queuing a
+        // button toggle frame after frame — indistinguishable from an
+        // autoclicker firing on its own the moment you touched the input.
+        // Tracking the previous isUpsideDown value and only correcting on
+        // the frame it actually changes fixes that: it fires once per real
+        // flip, exactly the case this feature exists for, and does nothing
+        // at all the rest of the time regardless of whether you're holding.
+        static bool prevUpsideDownP1 = bgl->m_player1->m_isUpsideDown;
+        static bool prevUpsideDownP2 = bgl->m_player2->m_isUpsideDown;
+        bool flippedP1 = bgl->m_player1->m_isUpsideDown != prevUpsideDownP1;
+        bool flippedP2 = bgl->m_player2->m_isUpsideDown != prevUpsideDownP2;
+        prevUpsideDownP1 = bgl->m_player1->m_isUpsideDown;
+        prevUpsideDownP2 = bgl->m_player2->m_isUpsideDown;
+
         bool p1maintain = bgl->m_player1->m_holdingButtons[1] != bgl->m_player1->m_isUpsideDown;
         bool p2maintain = bgl->m_player2->m_holdingButtons[1] != bgl->m_player2->m_isUpsideDown;
 
@@ -25,14 +45,14 @@ void runMaintainGravity() {
 
         bgl->m_queuedButtons.clear();
 
-        if (maintainGravityP1 &&
+        if (maintainGravityP1 && flippedP1 &&
             (p1holding || (autoclickerHoldingP1 && autoclickerP1)) != p1maintain) {
             bgl->queueButton((int)PlayerButton::Jump, !bgl->m_player1->m_holdingButtons[1],
             GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls), 0.0);
             autoclickerTimerP1 = INT32_MAX;
         }
 
-        if (maintainGravityP2 &&
+        if (maintainGravityP2 && flippedP2 &&
             (p2holding || (autoclickerHoldingP2 && autoclickerP2)) != p2maintain &&
             bgl->m_gameState.m_isDualMode && bgl->m_levelSettings->m_twoPlayerMode) {
             bgl->queueButton((int)PlayerButton::Jump, !bgl->m_player2->m_holdingButtons[1],
