@@ -153,14 +153,35 @@ $on_mod(Loaded) {
       }).draw([&] {
         static bool wasVisible = false;
         static double openAnimStart = -1.0;
+        static double closeAnimStart = -1.0;
+        static bool everOpened = false;
+        const double closeAnimDuration = 0.15;
+
         if (menuVisible != wasVisible) {
           geode::log::info("Scarlet Utils: draw() sees menuVisible -> {}", menuVisible);
           wasVisible = menuVisible;
-          if (menuVisible)
-            openAnimStart = ImGui::GetTime();
+          if (menuVisible) {
+            // Only slide-in the very first time the menu is ever opened this
+            // session. Every open after that leaves position/collapsed
+            // state exactly as it was — previously the slide-in position
+            // was re-forced on every single reopen, which silently threw
+            // away wherever the user had dragged the windows to.
+            if (!everOpened) {
+              openAnimStart = ImGui::GetTime();
+              everOpened = true;
+            }
+            closeAnimStart = -1.0; // cancel any close animation in progress
+          } else {
+            closeAnimStart = ImGui::GetTime();
+          }
         }
 
-        if (!menuVisible)
+        // Keep drawing for a short beat after menuVisible goes false so the
+        // close has something to animate instead of just vanishing.
+        bool closing = closeAnimStart >= 0.0 &&
+            (ImGui::GetTime() - closeAnimStart) < closeAnimDuration;
+
+        if (!menuVisible && !closing)
           return;
 
         // Scale the whole menu down — everything (font, padding, spacing)
@@ -309,6 +330,17 @@ $on_mod(Loaded) {
         ImVec2 mainFrom(mainTarget.x, mainTarget.y - 80.f);
         ImVec2 visualsFrom(visualsTarget.x, visualsTarget.y - 80.f);
 
+        // Closing fades the whole menu out over a short beat instead of
+        // just vanishing — kept to a plain alpha fade (no repositioning)
+        // since we don't know where the user may have dragged either
+        // window to, and fading in place works regardless of where that is.
+        float closeAlpha = 1.f;
+        if (closing) {
+          double closeT = (ImGui::GetTime() - closeAnimStart) / closeAnimDuration;
+          closeT = closeT < 0.0 ? 0.0 : (closeT > 1.0 ? 1.0 : closeT);
+          closeAlpha = 1.f - (float)closeT;
+        }
+
         auto lerp = [](ImVec2 a, ImVec2 b, float t) {
           return ImVec2(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
         };
@@ -367,11 +399,13 @@ $on_mod(Loaded) {
 
         if (animating)
           ImGui::SetNextWindowPos(lerp(mainFrom, mainTarget, animEase), ImGuiCond_Always);
-        else
-          ImGui::SetNextWindowPos(mainTarget, ImGuiCond_Appearing);
+        // No position call otherwise — leaving position alone lets ImGui
+        // keep whatever spot the window was last at (including anything the
+        // user dragged it to) across every close/reopen after the first.
         ImGui::SetNextWindowSizeConstraints(ImVec2(0.f, 0.f),
                                             ImVec2(maxWidth, maxHeight));
 
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, closeAlpha);
         ImGui::Begin("Main", nullptr,
                     ImGuiWindowFlags_NoCollapse |
                     ImGuiWindowFlags_AlwaysAutoResize);
@@ -655,14 +689,15 @@ $on_mod(Loaded) {
         } // !mainCollapsed
 
         ImGui::End();
+        ImGui::PopStyleVar(); // Alpha (Main)
 
         if (animating)
           ImGui::SetNextWindowPos(lerp(visualsFrom, visualsTarget, animEase), ImGuiCond_Always);
-        else
-          ImGui::SetNextWindowPos(visualsTarget, ImGuiCond_Appearing);
+        // No position call otherwise, same reasoning as Main above.
         ImGui::SetNextWindowSizeConstraints(ImVec2(0.f, 0.f),
                                             ImVec2(maxWidth, maxHeight));
 
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, closeAlpha);
         ImGui::Begin("Visuals", nullptr,
                     ImGuiWindowFlags_NoCollapse |
                     ImGuiWindowFlags_AlwaysAutoResize);
@@ -851,5 +886,6 @@ $on_mod(Loaded) {
         } // !visualsCollapsed
 
         ImGui::End();
+        ImGui::PopStyleVar(); // Alpha (Visuals)
       });
 }
