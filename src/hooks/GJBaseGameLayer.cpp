@@ -67,10 +67,22 @@ void runMaintainGravity() {
         // that wasn't a flip frame, since nothing was queued back in their
         // place. Corrections are now edge-triggered (see above), so most
         // frames need to leave the queue completely untouched.
-        bool willCorrectP1 = maintainGravityP1 && flippedP1 &&
-            (p1holding || (autoclickerHoldingP1 && autoclickerP1)) != p1maintain;
-        bool willCorrectP2 = maintainGravityP2 && flippedP2 &&
-            (p2holding || (autoclickerHoldingP2 && autoclickerP2)) != p2maintain &&
+        //
+        // Also require the player to actually be holding (or autoclicker-
+        // holding) before even considering a correction. Without this, the
+        // logs showed it forcing a synthetic press on a flip to upside-down
+        // even while the player was touching nothing at all — the XOR
+        // comparison against isUpsideDown implicitly assumed holdingButtons1
+        // should always track orientation, which isn't true when there's no
+        // real input to begin with. There's nothing to "maintain" if the
+        // player isn't providing input in the first place.
+        bool p1ProvidingInput = p1holding || (autoclickerHoldingP1 && autoclickerP1);
+        bool p2ProvidingInput = p2holding || (autoclickerHoldingP2 && autoclickerP2);
+
+        bool willCorrectP1 = maintainGravityP1 && flippedP1 && p1ProvidingInput &&
+            p1ProvidingInput != p1maintain;
+        bool willCorrectP2 = maintainGravityP2 && flippedP2 && p2ProvidingInput &&
+            p2ProvidingInput != p2maintain &&
             bgl->m_gameState.m_isDualMode && bgl->m_levelSettings->m_twoPlayerMode;
 
         // Logs exactly when a real flip is detected (flippedP1/flippedP2),
