@@ -11,6 +11,24 @@
 
 using namespace geode::prelude;
 
+// Removes any existing queued entry for the given player+button before
+// adding a fresh one, instead of clearing the whole queue. A blanket
+// clear() wipes out anything ELSE already queued that same tick too —
+// another feature's own correction, or the source player's own real input
+// event — which is exactly what caused the Maintain Gravity and Mirror
+// Input bugs earlier. This only removes what it's about to replace, so
+// Straight Fly's (or anything else's) own queued correction from earlier
+// in the same tick survives untouched.
+void queuePlayerButtonReplacing(GJBaseGameLayer* bgl, bool isPlayer2, bool push) {
+    bgl->m_queuedButtons.erase(
+        std::remove_if(bgl->m_queuedButtons.begin(), bgl->m_queuedButtons.end(),
+            [isPlayer2](const PlayerButtonCommand& cmd) {
+                return cmd.m_isPlayer2 == isPlayer2 && cmd.m_button == PlayerButton::Jump;
+            }),
+        bgl->m_queuedButtons.end());
+    bgl->queueButton((int)PlayerButton::Jump, push, isPlayer2, 0.0);
+}
+
 void runMaintainGravity() {
     auto bgl = GJBaseGameLayer::get();
     if (maintainGravity) {
@@ -55,18 +73,39 @@ void runMaintainGravity() {
             (p2holding || (autoclickerHoldingP2 && autoclickerP2)) != p2maintain &&
             bgl->m_gameState.m_isDualMode && bgl->m_levelSettings->m_twoPlayerMode;
 
-        if (willCorrectP1 || willCorrectP2)
-            bgl->m_queuedButtons.clear();
+        // Logs exactly when a real flip is detected (flippedP1/flippedP2),
+        // which is every single time m_isUpsideDown actually changes value.
+        // If a gravity portal is touched and NOTHING logs here, the flip
+        // itself isn't being detected at all (m_isUpsideDown isn't changing
+        // the way expected, or this isn't running for that player at all).
+        // If it DOES log but willCorrectP1/P2 comes out false, this shows
+        // exactly which sub-condition (player toggle, holding mismatch,
+        // dual/two-player-mode requirement for P2) is the reason.
+        if (verboseLoggingEnabled() && (flippedP1 || flippedP2)) {
+            geode::log::info(
+                "Scarlet Utils: maintainGravity flip detected — "
+                "P1: flipped={} isUpsideDown={} holdingButtons1={} p1holding={} p1maintain={} "
+                "maintainGravityP1={} willCorrectP1={} | "
+                "P2: flipped={} isUpsideDown={} holdingButtons1={} p2holding={} p2maintain={} "
+                "maintainGravityP2={} willCorrectP2={} isDualMode={} twoPlayerMode={}",
+                flippedP1, bgl->m_player1->m_isUpsideDown, bgl->m_player1->m_holdingButtons[1],
+                p1holding, p1maintain, maintainGravityP1, willCorrectP1,
+                flippedP2, bgl->m_player2->m_isUpsideDown, bgl->m_player2->m_holdingButtons[1],
+                p2holding, p2maintain, maintainGravityP2, willCorrectP2,
+                bgl->m_gameState.m_isDualMode, bgl->m_levelSettings->m_twoPlayerMode);
+        }
 
         if (willCorrectP1) {
-            bgl->queueButton((int)PlayerButton::Jump, !bgl->m_player1->m_holdingButtons[1],
-            GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls), 0.0);
+            queuePlayerButtonReplacing(bgl,
+                GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls),
+                !bgl->m_player1->m_holdingButtons[1]);
             autoclickerTimerP1 = INT32_MAX;
         }
 
         if (willCorrectP2) {
-            bgl->queueButton((int)PlayerButton::Jump, !bgl->m_player2->m_holdingButtons[1],
-            !GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls), 0.0);
+            queuePlayerButtonReplacing(bgl,
+                !GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls),
+                !bgl->m_player2->m_holdingButtons[1]);
             autoclickerTimerP2 = INT32_MAX;
         }
     }
@@ -114,15 +153,15 @@ void runMirrorInput() {
         // Player 1 provided input -> mirror it onto player 2.
         if (p1Changed) {
             bool target = mirrorInputInverted ? !p1Holding : p1Holding;
-            bgl->queueButton((int)PlayerButton::Jump, target,
-                !GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls), 0.0);
+            queuePlayerButtonReplacing(bgl,
+                !GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls), target);
         }
 
         // Player 2 provided input -> mirror it onto player 1.
         if (p2Changed) {
             bool target = mirrorInputInverted ? !p2Holding : p2Holding;
-            bgl->queueButton((int)PlayerButton::Jump, target,
-                GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls), 0.0);
+            queuePlayerButtonReplacing(bgl,
+                GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls), target);
         }
     }
 }
