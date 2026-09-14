@@ -76,46 +76,53 @@ void runMirrorInput() {
     auto bgl = GJBaseGameLayer::get();
     if (mirrorInput) {
         // Same reasoning as Maintain Gravity above: only fire the instant
-        // player 1's own input actually changes (press or release), never
+        // a player's own input actually changes (press or release), never
         // continuously — a continuous version would eat real input the
         // exact same way Maintain Gravity's original version did.
         //
-        // Behavior: player 1 is always the source. Whatever player 1 does
-        // (press or release), player 2 copies it — or does the opposite,
-        // if Inverted. Same physical/logical swap as Maintain Gravity above
+        // Behavior: whichever player provides input is the source for that
+        // instant — the other player copies it (or does the opposite, if
+        // Inverted). Same physical/logical swap as Maintain Gravity above
         // so this still tracks the right player if Flip2PlayerControls is on.
+        //
+        // Crucially: no clear() anywhere here. That was the bug in the
+        // one-directional version — clearing the queue before adding only
+        // the mirrored correction also wiped out the source player's own
+        // real button event for that same frame, which is why player 1
+        // stopped responding to its own input the moment the feature was
+        // turned on. Just appending each correction and leaving whatever
+        // real input is already queued alone fixes that for both directions.
         static bool prevP1Holding = false;
+        static bool prevP2Holding = false;
 
         bool p1Holding = bgl->m_uiLayer->m_p1Jumping || bgl->m_uiLayer->m_p1TouchId != -1;
-        bool p2HoldingRaw = bgl->m_uiLayer->m_p2Jumping || bgl->m_uiLayer->m_p2TouchId != -1;
+        bool p2Holding = bgl->m_uiLayer->m_p2Jumping || bgl->m_uiLayer->m_p2TouchId != -1;
         if (GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls))
-            std::swap(p1Holding, p2HoldingRaw);
+            std::swap(p1Holding, p2Holding);
 
-        bool changed = p1Holding != prevP1Holding;
+        bool p1Changed = p1Holding != prevP1Holding;
+        bool p2Changed = p2Holding != prevP2Holding;
         prevP1Holding = p1Holding;
+        prevP2Holding = p2Holding;
 
-        if (verboseLoggingEnabled()) {
+        if (verboseLoggingEnabled() && (p1Changed || p2Changed)) {
             geode::log::info(
-                "Scarlet Utils: mirrorInput p1Holding={} p1TouchId={} p1Jumping={} changed={} isDualMode={}",
-                p1Holding, bgl->m_uiLayer->m_p1TouchId, bgl->m_uiLayer->m_p1Jumping, changed,
-                bgl->m_gameState.m_isDualMode);
+                "Scarlet Utils: mirrorInput p1Holding={} p1Changed={} p2Holding={} p2Changed={}",
+                p1Holding, p1Changed, p2Holding, p2Changed);
         }
 
-        if (changed) {
+        // Player 1 provided input -> mirror it onto player 2.
+        if (p1Changed) {
             bool target = mirrorInputInverted ? !p1Holding : p1Holding;
-            // No clear() here — player 1's own real button press/release for
-            // this exact frame is already sitting in this same queue from
-            // GD's normal input handling. Clearing before adding only the
-            // player 2 correction (as this did before) wiped that real event
-            // out, which is exactly why player 1 stopped responding to its
-            // own input the moment this feature was turned on. Just append
-            // the correction instead and leave whatever's already queued
-            // alone.
             bgl->queueButton((int)PlayerButton::Jump, target,
                 !GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls), 0.0);
+        }
 
-            if (verboseLoggingEnabled())
-                geode::log::info("Scarlet Utils: mirrorInput queued P2 button, target={}", target);
+        // Player 2 provided input -> mirror it onto player 1.
+        if (p2Changed) {
+            bool target = mirrorInputInverted ? !p2Holding : p2Holding;
+            bgl->queueButton((int)PlayerButton::Jump, target,
+                GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls), 0.0);
         }
     }
 }
