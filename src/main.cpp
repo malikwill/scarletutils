@@ -346,7 +346,25 @@ $on_mod(Loaded) {
         // only supports four fixed directions. Kept deliberately simple:
         // one lerp per frame, no easing library, no extra draw calls beyond
         // a single filled triangle.
-        auto collapseArrow = [&](const char *id, bool &collapsed, float &angleDeg) {
+        //
+        // Drawn directly onto the title bar itself (left edge, vertically
+        // centered), not as a separate row below it — it used to render as
+        // its own line with a second, redundant copy of the window's name
+        // next to it, which looked disconnected from the actual title bar
+        // above it. The title text is centered (see WindowTitleAlign
+        // below), so the left side of the title bar is otherwise empty
+        // space, and the real title already shows the name, so no separate
+        // label is needed here at all.
+        //
+        // Deliberately NOT using InvisibleButton/SetCursorScreenPos for
+        // this: that would move ImGui's layout cursor into the title bar
+        // area, which sits above where the window's normal content region
+        // starts, and this codebase has hit more than one subtle AutoResize
+        // bookkeeping bug already from cursor tricks like that. Instead
+        // this does a raw mouse-vs-rect hit test and draws straight to the
+        // window's draw list — it never touches the layout system, so it
+        // can't affect sizing no matter what.
+        auto collapseArrow = [&](bool &collapsed, float &angleDeg) {
           float target = collapsed ? 0.f : 90.f;
           float speed = 720.f; // degrees/sec — quick but still visible
           float dt = ImGui::GetIO().DeltaTime;
@@ -355,10 +373,14 @@ $on_mod(Loaded) {
           else if (angleDeg > target)
             angleDeg = std::max(angleDeg - speed * dt, target);
 
-          float size = ImGui::GetFrameHeight();
-          ImVec2 topLeft = ImGui::GetCursorScreenPos();
-          ImGui::InvisibleButton(id, ImVec2(size, size));
-          bool clicked = ImGui::IsItemClicked();
+          ImVec2 windowPos = ImGui::GetWindowPos();
+          float titleBarHeight = ImGui::GetFrameHeight();
+          float size = titleBarHeight * 0.65f;
+          ImVec2 topLeft(windowPos.x + 6.f, windowPos.y + (titleBarHeight - size) * 0.5f);
+          ImVec2 bottomRight(topLeft.x + size, topLeft.y + size);
+
+          bool hovered = ImGui::IsMouseHoveringRect(topLeft, bottomRight);
+          bool clicked = hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
 
           ImVec2 center(topLeft.x + size * 0.5f, topLeft.y + size * 0.5f);
           float r = size * 0.28f;
@@ -415,9 +437,7 @@ $on_mod(Loaded) {
               pos.x, pos.y, size.x, size.y, display.x, display.y);
         }
 
-        collapseArrow("##collapseMain", mainCollapsed, mainArrowAngle);
-        ImGui::SameLine();
-        ImGui::Text("Main");
+        collapseArrow(mainCollapsed, mainArrowAngle);
 
         if (!mainCollapsed) {
 
@@ -709,9 +729,7 @@ $on_mod(Loaded) {
               pos.x, pos.y, size.x, size.y, display.x, display.y);
         }
 
-        collapseArrow("##collapseVisuals", visualsCollapsed, visualsArrowAngle);
-        ImGui::SameLine();
-        ImGui::Text("Visuals");
+        collapseArrow(visualsCollapsed, visualsArrowAngle);
 
         if (!visualsCollapsed) {
 
