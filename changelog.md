@@ -3,10 +3,7 @@
 # 2.6.0
 - Reworked the menu into two separate, independently draggable windows ("Main" and "Visuals") instead of tabs in one window, each with its own animated collapse arrow, closed by default on open
 - Added a quick fade in/out animation when opening and closing the menu
-- Fixed Maintain Gravity not working in dual mode with a single player
-- Fixed Maintain Gravity eating real input entirely while active
-- Fixed Maintain Gravity behaving like an uncontrollable autoclicker while holding input — corrections are now edge-triggered on the actual gravity flip instead of re-firing every frame
-- Added separate Player 1 / Player 2 toggles for Maintain Gravity
+- Added a new "Mirror Input" option: whichever player provides input, the other one copies it (or does the opposite, with the Inverted sub-toggle)
 - Fixed several menu options (Level/Audio Fade, Hide Endscreen, Hide New Best) being unavailable on Android for no real reason
 - Fixed the level fade-in not replaying on every attempt
 - Added a timeout to the level fade-out so the screen doesn't stay stuck black
