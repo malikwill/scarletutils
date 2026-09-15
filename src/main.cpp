@@ -71,8 +71,6 @@ bool straightFly = false;
 bool straightUfo = false;
 
 bool maintainGravity = false;
-bool maintainGravityP1 = true;
-bool maintainGravityP2 = true;
 bool mirrorInput = false;
 bool mirrorInputInverted = false;
 
@@ -487,16 +485,6 @@ $on_mod(Loaded) {
             }
 
             ImGui::Checkbox("Maintain Gravity", &maintainGravity);
-
-            ImGui::SameLine();
-            if (ImGui::ArrowButton("mg1", ImGuiDir_Right))
-              ImGui::OpenPopup("maintain gravity options");
-
-            if (ImGui::BeginPopup("maintain gravity options")) {
-              ImGui::Checkbox("Player 1##maintaingravity", &maintainGravityP1);
-              ImGui::Checkbox("Player 2##maintaingravity", &maintainGravityP2);
-              ImGui::EndPopup();
-            }
 
             ImGui::Checkbox("Mirror Input", &mirrorInput);
 

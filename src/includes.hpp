@@ -66,8 +66,6 @@ extern bool straightFly;
 extern bool straightUfo;
 
 extern bool maintainGravity;
-extern bool maintainGravityP1;
-extern bool maintainGravityP2;
 extern bool mirrorInput;
 extern bool mirrorInputInverted;
 
