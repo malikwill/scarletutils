@@ -45,9 +45,14 @@ class $modify(ScarletPlayLayer, PlayLayer) {
         if (noclip && noclipP1 && player == m_player1) return;
         if (noclip && noclipP2 && player == m_player2) return;
 
-        PlayLayer::destroyPlayer(player, object);
+        // Capture what was being held right before this death, before
+        // anything else resets — this is what decides which way resetLevel()
+        // flips for the retry below.
+        if (flipOnDeath && m_isPracticeMode && player == m_player1 && player->m_isBird) {
+            waveFlipHeldAtDeath = player->m_holdingButtons[1];
+        }
 
-        flipPlayer = player->m_isSecondPlayer ? 2 : 1;
+        PlayLayer::destroyPlayer(player, object);
 
         autoclickerHoldingP1 = false;
         autoclickerTimerP1 = INT_MAX;
@@ -58,46 +63,64 @@ class $modify(ScarletPlayLayer, PlayLayer) {
     void resetLevel() {
         PlayLayer::resetLevel();
         this->applyStartFade();
-        if (flipOnDeath && flipPlayer != 0 && Loader::get()->isModLoaded("peony.silicate")) {
-            if (flipOnDeathP1 && flipPlayer == 1 || flipOnDeathBoth) {
-                if (!flipOnDeathSwift) {
-                    if (flipOnDeathLogicP1) {
-                        queueButton((int)PlayerButton::Jump, true, false ^
-                        GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls),0.0);
-                    }
-                    flipPlayer = 0;
-                    flipOnDeathLogicP1 = !flipOnDeathLogicP1;
-                } else {
-                    queueButton((int)PlayerButton::Jump, true, false ^
-                    GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls),0.0);
-                    queueButton((int)PlayerButton::Jump, false, false ^
-                    GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls),0.0);
-                    flipPlayer = 0;
-                }
-            }
-            if (flipOnDeathP2 && flipPlayer == 2 || flipOnDeathBoth) {
-                if (!flipOnDeathSwift) {
-                    if (flipOnDeathLogicP2) {
-                        queueButton((int)PlayerButton::Jump, true, true ^
-                        GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls),0.0);
-                    }
-                    flipPlayer = 0;
-                    flipOnDeathLogicP2 = !flipOnDeathLogicP2;
-                } else {
-                    queueButton((int)PlayerButton::Jump, true, true ^
-                    GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls),0.0);
-                    queueButton((int)PlayerButton::Jump, false, true ^
-                    GameManager::sharedState()->getGameVariable(GameVar::Flip2PlayerControls),0.0);
-                    flipPlayer = 0;
-                }
-            }
+
+        // Wave-mode, practice-mode-only auto-retry: resume from our own
+        // private rolling checkpoint (see postUpdate below) instead of
+        // wherever the normal reset above landed, then queue the opposite
+        // held state from whatever was active right before the last death.
+        // waveFlipCheckpoint being null (feature just turned on, no capture
+        // yet; or never armed because not in a wave/practice context) just
+        // leaves the normal reset above as the final result.
+        if (flipOnDeath && m_isPracticeMode && waveFlipCheckpoint) {
+            this->loadFromCheckpoint(waveFlipCheckpoint);
+
+            bool target = !waveFlipHeldAtDeath;
+            this->queueButton((int)PlayerButton::Jump, target, false, 0.0);
             this->processQueuedButtons(0, true);
-            #ifdef GEODE_IS_WINDOWS
-            if (flipOnDeathUnfreeze) {
-                PostMessage(hwnd, WM_KEYDOWN, 0x56, 0);
-                PostMessage(hwnd, WM_KEYUP, 0x56, 0);
+        }
+    }
+
+    bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects) {
+        if (!PlayLayer::init(level, useReplay, dontCreateObjects))
+            return false;
+
+        // Any previously tracked checkpoint belonged to a now-destroyed
+        // PlayLayer instance and must not be reused in a fresh one.
+        if (waveFlipCheckpoint) {
+            waveFlipCheckpoint->release();
+            waveFlipCheckpoint = nullptr;
+        }
+
+        return true;
+    }
+
+    void onExit() {
+        if (waveFlipCheckpoint) {
+            waveFlipCheckpoint->release();
+            waveFlipCheckpoint = nullptr;
+        }
+        PlayLayer::onExit();
+    }
+
+    void postUpdate(float dt) {
+        PlayLayer::postUpdate(dt);
+
+        // Rolling per-frame capture — deliberately every frame rather than
+        // every N, since the whole point is landing as close as possible to
+        // the actual death frame without a real backwards-stepping engine
+        // underneath this. createCheckpoint() returns an autoreleased
+        // object (standard cocos2d create() convention), so it has to be
+        // retained here to survive past this frame, with the previous one
+        // released right before being replaced.
+        if (flipOnDeath && m_isPracticeMode && m_player1 && !m_player1->m_isDead &&
+            m_player1->m_isBird) {
+            auto cp = this->createCheckpoint();
+            if (cp) {
+                cp->retain();
+                if (waveFlipCheckpoint)
+                    waveFlipCheckpoint->release();
+                waveFlipCheckpoint = cp;
             }
-            #endif
         }
     }
 
