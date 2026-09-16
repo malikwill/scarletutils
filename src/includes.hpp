@@ -1,11 +1,9 @@
 #pragma once
 
 #include <Geode/Geode.hpp>
+#include <Geode/binding/CheckpointObject.hpp>
 
 using namespace geode::prelude;
-#ifdef GEODE_IS_WINDOWS
-extern HWND hwnd;
-#endif
 extern bool menuVisible;
 
 // Gates every diagnostic geode::log::info call this mod makes. Reads the
@@ -42,15 +40,21 @@ extern double straightUfoThresholdP2;
 extern cocos2d::ccColor3B layoutModeColorBackground;
 extern cocos2d::ccColor3B layoutModeColorGround;
 
-extern int flipPlayer;
+// Flip Input On Death: Wave-mode, practice-mode-only auto-retry helper.
+// Every frame while active (and in a wave section, in practice mode, and
+// alive), it snapshots the player's current state as a private rolling
+// checkpoint of our own — separate from the player's real, manually-placed
+// checkpoints, so it never interferes with those. On death, once the level
+// resets, it loads that snapshot back (landing within a frame or so of the
+// actual death, not frame-perfect, since there's no Silicate-style
+// backwards-stepping engine underneath this) and queues the opposite held
+// state from whatever was active right before dying, so the retry tries
+// the other option automatically. Turning it off just stops updating and
+// acting on the snapshot — whatever attempt is in progress continues from
+// wherever it currently is.
 extern bool flipOnDeath;
-extern bool flipOnDeathBoth;
-extern bool flipOnDeathP1;
-extern bool flipOnDeathP2;
-extern bool flipOnDeathLogicP1;
-extern bool flipOnDeathLogicP2;
-extern bool flipOnDeathSwift;
-extern bool flipOnDeathUnfreeze;
+extern CheckpointObject* waveFlipCheckpoint;
+extern bool waveFlipHeldAtDeath;
 
 extern bool autoSwift;
 extern bool extraClick;

@@ -12,10 +12,6 @@ bool verboseLoggingEnabled() {
   return Mod::get()->getSettingValue<bool>("scarlet.utils/verbose-logging");
 }
 
-#ifdef GEODE_IS_WINDOWS
-HWND hwnd = FindWindow(NULL, "Geometry Dash");
-#endif
-
 bool noDeathEffect = Mod::get()->getSavedValue<bool>("noDeathEffect", false);
 bool hideEndscreen = Mod::get()->getSavedValue<bool>("hideEndscreen", false);
 bool hideNewBest = Mod::get()->getSavedValue<bool>("hideNewBest", false);
@@ -47,15 +43,9 @@ cocos2d::ccColor3B layoutModeColorBackground =
 cocos2d::ccColor3B layoutModeColorGround =
     Mod::get()->getSavedValue<cocos2d::ccColor3B>("layoutModeColorGround", {160,160,160});
 
-int flipPlayer;
 bool flipOnDeath = false;
-bool flipOnDeathBoth = false;
-bool flipOnDeathP1 = true;
-bool flipOnDeathP2 = true;
-bool flipOnDeathLogicP2 = true;
-bool flipOnDeathLogicP1 = true;
-bool flipOnDeathSwift = false;
-bool flipOnDeathUnfreeze = false;
+CheckpointObject* waveFlipCheckpoint = nullptr;
+bool waveFlipHeldAtDeath = false;
 
 bool autoSwift = false;
 bool extraClick = false;
@@ -441,42 +431,13 @@ $on_mod(Loaded) {
 
         if (!mainCollapsed) {
 
-            bool flipOnDeathSilicateAvailable = Loader::get()->isModLoaded("peony.silicate");
-
-            ImGui::BeginDisabled(!flipOnDeathSilicateAvailable);
             ImGui::Checkbox("Flip Input On Death", &flipOnDeath);
-            ImGui::EndDisabled();
             if (ImGui::IsItemHovered()) {
               ImGui::BeginTooltip();
-              ImGui::Text("Requires Silicate; Enable Backwards Stepping and Prevent Death.");
+              ImGui::Text("Wave mode, practice mode only. Keeps a private auto-checkpoint");
+              ImGui::Text("of its own and, on death, resumes from it with the opposite");
+              ImGui::Text("held state — automatically retrying the other option.");
               ImGui::EndTooltip();
-            }
-
-            ImGui::SameLine();
-            if (ImGui::ArrowButton("3y0", ImGuiDir_Right))
-              ImGui::OpenPopup("flipOnDeath options");
-
-            if (ImGui::BeginPopup("flipOnDeath options")) {
-              ImGui::Checkbox("Player 1##flipOnDeath", &flipOnDeathP1);
-              ImGui::Checkbox("Player 2##flipOnDeath", &flipOnDeathP2);
-              ImGui::Checkbox("Click Both##flipOnDeath", &flipOnDeathBoth);
-              ImGui::Checkbox("Swift##flipOnDeath", &flipOnDeathSwift);
-              #ifdef GEODE_IS_WINDOWS
-              ImGui::Checkbox("Unfreeze##flipOnDeath", &flipOnDeathUnfreeze);
-              if (ImGui::IsItemHovered()) {
-                ImGui::BeginTooltip();
-                ImGui::Text("Requires frame advance toggle keybind to be set to V.");
-                ImGui::EndTooltip();
-              }
-              #endif
-              ImGui::EndPopup();
-            }
-
-            if (!flipOnDeathSilicateAvailable) {
-              ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.4f, 0.4f, 1.f));
-              ImGui::TextWrapped("Requires Silicate, which isn't installed "
-                                 "(or isn't available on this platform).");
-              ImGui::PopStyleColor();
             }
 
             ImGui::Checkbox("Click Green Dash Orbs", &clickGreenDash);
