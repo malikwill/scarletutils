@@ -345,24 +345,14 @@ $on_mod(Loaded) {
         // one lerp per frame, no easing library, no extra draw calls beyond
         // a single filled triangle.
         //
-        // Drawn directly onto the title bar itself (left edge, vertically
-        // centered), not as a separate row below it — it used to render as
-        // its own line with a second, redundant copy of the window's name
-        // next to it, which looked disconnected from the actual title bar
-        // above it. The title text is centered (see WindowTitleAlign
-        // below), so the left side of the title bar is otherwise empty
-        // space, and the real title already shows the name, so no separate
-        // label is needed here at all.
-        //
-        // Deliberately NOT using InvisibleButton/SetCursorScreenPos for
-        // this: that would move ImGui's layout cursor into the title bar
-        // area, which sits above where the window's normal content region
-        // starts, and this codebase has hit more than one subtle AutoResize
-        // bookkeeping bug already from cursor tricks like that. Instead
-        // this does a raw mouse-vs-rect hit test and draws straight to the
-        // window's draw list — it never touches the layout system, so it
-        // can't affect sizing no matter what.
-        auto collapseArrow = [&](bool &collapsed, float &angleDeg) {
+        // Renders as its own row (arrow + label) right below the title
+        // bar, using normal ImGui layout (InvisibleButton + cursor flow) —
+        // reverted back to this after the title-bar-overlay version caused
+        // two separate bugs in a row (the collapsed window shrinking to an
+        // unreadable sliver, then the arrow being invisible/unclickable
+        // once that was fixed, from a draw-list clipping issue). This
+        // version is the one that was actually confirmed working.
+        auto collapseArrow = [&](const char *id, bool &collapsed, float &angleDeg) {
           float target = collapsed ? 0.f : 90.f;
           float speed = 720.f; // degrees/sec — quick but still visible
           float dt = ImGui::GetIO().DeltaTime;
@@ -371,14 +361,10 @@ $on_mod(Loaded) {
           else if (angleDeg > target)
             angleDeg = std::max(angleDeg - speed * dt, target);
 
-          ImVec2 windowPos = ImGui::GetWindowPos();
-          float titleBarHeight = ImGui::GetFrameHeight();
-          float size = titleBarHeight * 0.65f;
-          ImVec2 topLeft(windowPos.x + 6.f, windowPos.y + (titleBarHeight - size) * 0.5f);
-          ImVec2 bottomRight(topLeft.x + size, topLeft.y + size);
-
-          bool hovered = ImGui::IsMouseHoveringRect(topLeft, bottomRight);
-          bool clicked = hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+          float size = ImGui::GetFrameHeight();
+          ImVec2 topLeft = ImGui::GetCursorScreenPos();
+          ImGui::InvisibleButton(id, ImVec2(size, size));
+          bool clicked = ImGui::IsItemClicked();
 
           ImVec2 center(topLeft.x + size * 0.5f, topLeft.y + size * 0.5f);
           float r = size * 0.28f;
@@ -392,19 +378,7 @@ $on_mod(Loaded) {
           ImVec2 p3 = rot(r * 1.3f, 0.f);
 
           ImU32 col = ImGui::GetColorU32(ImGuiCol_Text);
-          ImDrawList *drawList = ImGui::GetWindowDrawList();
-          // The window draw list's active clip rect at this point is scoped
-          // to the content region, which starts BELOW the title bar — so
-          // drawing at a y-coordinate inside the title bar (as this does)
-          // was silently being clipped away entirely, never actually
-          // rendering anything. Explicitly widen the clip rect to cover the
-          // title bar first (replacing, not intersecting with, whatever's
-          // currently active), draw, then restore it.
-          drawList->PushClipRect(windowPos,
-              ImVec2(windowPos.x + ImGui::GetWindowWidth(), windowPos.y + titleBarHeight),
-              false);
-          drawList->AddTriangleFilled(p1, p2, p3, col);
-          drawList->PopClipRect();
+          ImGui::GetWindowDrawList()->AddTriangleFilled(p1, p2, p3, col);
 
           if (clicked)
             collapsed = !collapsed;
@@ -447,7 +421,9 @@ $on_mod(Loaded) {
               pos.x, pos.y, size.x, size.y, display.x, display.y);
         }
 
-        collapseArrow(mainCollapsed, mainArrowAngle);
+        collapseArrow("##collapseMain", mainCollapsed, mainArrowAngle);
+        ImGui::SameLine();
+        ImGui::Text("Main");
 
         if (!mainCollapsed) {
 
@@ -710,7 +686,9 @@ $on_mod(Loaded) {
               pos.x, pos.y, size.x, size.y, display.x, display.y);
         }
 
-        collapseArrow(visualsCollapsed, visualsArrowAngle);
+        collapseArrow("##collapseVisuals", visualsCollapsed, visualsArrowAngle);
+        ImGui::SameLine();
+        ImGui::Text("Visuals");
 
         if (!visualsCollapsed) {
 
