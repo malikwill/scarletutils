@@ -392,7 +392,19 @@ $on_mod(Loaded) {
           ImVec2 p3 = rot(r * 1.3f, 0.f);
 
           ImU32 col = ImGui::GetColorU32(ImGuiCol_Text);
-          ImGui::GetWindowDrawList()->AddTriangleFilled(p1, p2, p3, col);
+          ImDrawList *drawList = ImGui::GetWindowDrawList();
+          // The window draw list's active clip rect at this point is scoped
+          // to the content region, which starts BELOW the title bar — so
+          // drawing at a y-coordinate inside the title bar (as this does)
+          // was silently being clipped away entirely, never actually
+          // rendering anything. Explicitly widen the clip rect to cover the
+          // title bar first (replacing, not intersecting with, whatever's
+          // currently active), draw, then restore it.
+          drawList->PushClipRect(windowPos,
+              ImVec2(windowPos.x + ImGui::GetWindowWidth(), windowPos.y + titleBarHeight),
+              false);
+          drawList->AddTriangleFilled(p1, p2, p3, col);
+          drawList->PopClipRect();
 
           if (clicked)
             collapsed = !collapsed;
