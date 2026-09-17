@@ -300,6 +300,14 @@ $on_mod(Loaded) {
         // TextWrapped, so it can't force the width out either.
         float maxWidth = std::min(320.f, ImGui::GetIO().DisplaySize.x * 0.45f);
         float maxHeight = std::min(220.f, ImGui::GetIO().DisplaySize.y * 0.4f);
+        // Minimum width, specifically to keep the *collapsed* window from
+        // shrinking to unreadable. Collapsed, there's no content left to
+        // auto-size around anymore (the redundant "Main"/"Visuals" label
+        // that used to force a sane width got removed in favor of drawing
+        // the arrow into the title bar itself), so without an explicit
+        // floor it fell all the way down toward WindowMinSize (32px) and
+        // clipped the title text to a single letter.
+        float minWidth = 120.f;
 
         // Quick open animation: for a short window right after menuVisible
         // flips true, both windows fade in (alpha 0 -> 1) instead of the
@@ -410,7 +418,7 @@ $on_mod(Loaded) {
         // No position call otherwise — leaving position alone lets ImGui
         // keep whatever spot the window was last at (including anything the
         // user dragged it to) across every close/reopen after the first.
-        ImGui::SetNextWindowSizeConstraints(ImVec2(0.f, 0.f),
+        ImGui::SetNextWindowSizeConstraints(ImVec2(minWidth, 0.f),
                                             ImVec2(maxWidth, maxHeight));
 
         ImGui::PushStyleVar(ImGuiStyleVar_Alpha, windowAlpha);
@@ -672,7 +680,7 @@ $on_mod(Loaded) {
         if (!positionInitialized)
           ImGui::SetNextWindowPos(visualsTarget, ImGuiCond_Always);
         // No position call otherwise, same reasoning as Main above.
-        ImGui::SetNextWindowSizeConstraints(ImVec2(0.f, 0.f),
+        ImGui::SetNextWindowSizeConstraints(ImVec2(minWidth, 0.f),
                                             ImVec2(maxWidth, maxHeight));
         positionInitialized = true;
 
